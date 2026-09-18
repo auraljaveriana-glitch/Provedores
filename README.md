@@ -7,10 +7,10 @@ Es un sitio estático (HTML + CSS + JS, sin instalación ni build) que usa **Sup
 ## 1. Crear el backend en Supabase (una sola vez)
 
 1. Entra a tu proyecto en [supabase.com](https://supabase.com) (o crea uno nuevo).
-2. Ve a **SQL Editor** → **New query**, pega todo el contenido de [`supabase/schema.sql`](supabase/schema.sql) y dale **Run**. Esto crea las tablas `providers` y `quotes`, la seguridad (solo usuarios con sesión iniciada pueden leer/escribir) y el bucket de almacenamiento `cotizaciones-files` para los archivos adjuntos.
-3. Ve a **Project Settings → API** y copia:
+2. Ve a **SQL Editor** → **New query**, pega todo el contenido de [`schema.sql`](schema.sql) y dale **Run**. Esto crea las tablas `providers` y `quotes`, la seguridad (solo usuarios con sesión iniciada pueden leer/escribir) y el bucket de almacenamiento `cotizaciones-files` para los archivos adjuntos.
+3. Ve a **Project Settings → API Keys** y copia:
    - **Project URL**
-   - **anon public key**
+   - **Publishable key** (`sb_publishable_...`) — nunca la **Secret key** (`sb_secret_...`), esa nunca va en el sitio.
 4. Abre el archivo [`supabase-config.js`](supabase-config.js) de este proyecto y pega esos dos valores en lugar de los textos de ejemplo.
 
 ### Importante — quién puede crear cuenta
@@ -45,13 +45,15 @@ Cada vez que hagas cambios y los subas a GitHub (`git push`), Netlify vuelve a p
 ## Estructura del proyecto
 
 ```
-index.html              La página (estructura)
-styles.css              Estilos y colores de marca Aural
-app.js                  Toda la lógica (proveedores, cotizaciones, login, archivos)
-supabase-config.js      Tus llaves de Supabase (edítalo, no lo compartas públicamente)
-assets/aural-logo.png   Logo real de Aural
-supabase/schema.sql     Script para crear la base de datos en Supabase
+index.html            La página (estructura)
+styles.css            Estilos y colores de marca Aural
+app.js                Toda la lógica (proveedores, cotizaciones, login, archivos)
+supabase-config.js    Tus llaves de Supabase (edítalo, no lo compartas públicamente)
+aural-logo.png        Logo real de Aural
+schema.sql            Script para crear la base de datos en Supabase (se pega en Supabase, no lo usa el sitio)
 ```
+
+Todos los archivos van sueltos en la raíz del repositorio (sin subcarpetas) — así funciona si subes el proyecto arrastrando los archivos directamente en la página de GitHub.
 
 ## Uso
 
