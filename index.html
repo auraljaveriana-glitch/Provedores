@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proveedores &amp; cotizaciones — Aural</title>
+<link rel="icon" href="assets/aural-logo.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-card">
+    <span class="logo-chip"><img class="brand-logo" src="assets/aural-logo.png" alt="Aural"></span>
+    <h2>Proveedores &amp; cotizaciones</h2>
+    <p class="hint">Inicia sesión con tu correo de Aural para entrar.</p>
+    <div class="auth-tabs">
+      <button type="button" class="auth-tab active" data-mode="signin">Iniciar sesión</button>
+      <button type="button" class="auth-tab" data-mode="signup">Crear cuenta</button>
+    </div>
+    <form id="auth-form">
+      <input type="email" id="auth-email" placeholder="Correo" autocomplete="username" required>
+      <input type="password" id="auth-password" placeholder="Contraseña" autocomplete="current-password" required minlength="6">
+      <button type="submit" class="btn-primary" id="auth-submit">Entrar</button>
+      <p id="auth-error" class="auth-error" hidden></p>
+      <p id="auth-ok" class="auth-ok" hidden></p>
+    </form>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-chip"><img class="brand-logo" src="assets/aural-logo.png" alt="Aural"></span>
+      <div class="brand-text">
+        <span class="brand-sub">Centros Auditivos</span>
+      </div>
+    </div>
+    <h1>Proveedores &amp; cotizaciones</h1>
+    <p id="whoami" class="whoami" hidden></p>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="quotes" role="tab" aria-selected="true">Cotizaciones</button>
+      <button class="tab" data-tab="providers" role="tab" aria-selected="false">Proveedores</button>
+      <button class="tab" data-tab="compare" role="tab" aria-selected="false">Comparar</button>
+    </nav>
+  </header>
+
+  <section class="stats" id="stats"></section>
+
+  <main>
+    <section id="view-quotes" class="view active">
+      <div class="toolbar">
+        <input type="text" id="q-search" placeholder="Buscar por proveedor o descripción…">
+        <select id="q-filter-provider"><option value="">Todos los proveedores</option></select>
+        <select id="q-filter-status">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="abono">Abono 50% pagado</option>
+          <option value="completo">Pagado completo</option>
+        </select>
+        <button class="btn-primary" id="btn-new-quote" type="button">+ Nueva cotización</button>
+      </div>
+      <div id="quotes-list" class="quotes-list"></div>
+      <p id="quotes-empty" class="empty" hidden>Aún no hay cotizaciones registradas. Crea la primera con "Nueva cotización".</p>
+    </section>
+
+    <section id="view-providers" class="view">
+      <div class="toolbar">
+        <input type="text" id="p-search" placeholder="Buscar proveedor por nombre o categoría…">
+        <button class="btn-primary" id="btn-new-provider" type="button">+ Nuevo proveedor</button>
+      </div>
+      <div id="providers-grid" class="providers-grid"></div>
+      <p id="providers-empty" class="empty" hidden>Aún no hay proveedores registrados.</p>
+    </section>
+
+    <section id="view-compare" class="view">
+      <div class="toolbar">
+        <input type="text" id="c-search" placeholder="Ej: audífono retroauricular, pilas 312, pendones…">
+      </div>
+      <div id="compare-results"></div>
+      <p id="compare-empty" class="empty">Escribe qué producto o servicio quieres comparar entre proveedores — se agruparán las cotizaciones que coincidan y se resaltará la de mejor precio.</p>
+    </section>
+  </main>
+</div>
+
+<dialog id="dlg-provider">
+  <div class="dlg-head"><h2 id="dlg-provider-title">Nuevo proveedor</h2><button class="dlg-close" type="button" data-close="dlg-provider">✕</button></div>
+  <form class="dlg-body" id="form-provider">
+    <input type="hidden" id="pv-id">
+    <div class="row2">
+      <div class="field"><label>Nombre del proveedor *</label><input type="text" id="pv-name" required></div>
+      <div class="field"><label>N.º / código de proveedor</label><input type="text" id="pv-code" placeholder="Ej: PROV-014"></div>
+    </div>
+    <div class="field"><label>¿Qué nos vende / ofrece?</label>
+      <input type="text" id="pv-category" list="cat-list" placeholder="Ej: Audífonos Widex, insumos, material publicitario…">
+      <datalist id="cat-list">
+        <option value="Audífonos Widex">
+        <option value="Audífonos AudioService">
+        <option value="Insumos y baterías">
+        <option value="Material publicitario">
+        <option value="Servicios / mantenimiento">
+        <option value="Software / tecnología">
+      </datalist>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Persona de contacto</label><input type="text" id="pv-contact"></div>
+      <div class="field"><label>Teléfono</label><input type="text" id="pv-phone"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Correo</label><input type="email" id="pv-email"></div>
+      <div class="field"><label>Ciudad</label><input type="text" id="pv-city"></div>
+    </div>
+    <div class="field-divider">Datos para pagos</div>
+    <div class="field"><label>RUT</label><input type="text" id="pv-rut" placeholder="Número de RUT del proveedor"></div>
+    <div class="row3">
+      <div class="field"><label>Banco</label><input type="text" id="pv-bank"></div>
+      <div class="field"><label>Tipo de cuenta</label>
+        <select id="pv-account-type"><option value="">—</option><option value="Ahorros">Ahorros</option><option value="Corriente">Corriente</option></select>
+      </div>
+      <div class="field"><label>N.º de cuenta</label><input type="text" id="pv-account-number"></div>
+    </div>
+    <div class="field"><label>Notas</label><textarea id="pv-notes" placeholder="Condiciones, tiempos de entrega, acuerdos…"></textarea></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close="dlg-provider">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar proveedor</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-quote">
+  <div class="dlg-head"><h2 id="dlg-quote-title">Nueva cotización</h2><button class="dlg-close" type="button" data-close="dlg-quote">✕</button></div>
+  <form class="dlg-body" id="form-quote">
+    <input type="hidden" id="qt-id">
+    <div class="field"><label>Proveedor *</label>
+      <div style="display:flex;gap:8px;">
+        <select id="qt-provider" required style="flex:1;min-width:0;"></select>
+        <button type="button" class="btn-ghost" id="btn-quick-provider">+ Nuevo</button>
+      </div>
+    </div>
+    <div class="field"><label>Descripción del producto / servicio *</label><input type="text" id="qt-desc" required placeholder="Ej: 10 audífonos RIC Widex Moment"></div>
+    <div class="row2">
+      <div class="field"><label>Valor total *</label><input type="number" min="0" step="1" id="qt-amount" required></div>
+      <div class="field"><label>Moneda</label>
+        <select id="qt-currency"><option value="COP">COP</option><option value="USD">USD</option><option value="Otra">Otra</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Fecha de la cotización</label><input type="date" id="qt-quotedate"></div>
+    <div class="field">
+      <label>Archivo de la cotización (PDF o imagen)</label>
+      <input type="file" id="qt-file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*">
+      <span class="file-current" id="qt-file-current"></span>
+      <span class="hint">Máx. 20 MB. Se guarda junto con esta cotización para todo el equipo.</span>
+    </div>
+    <div class="field"><label>Notas</label><textarea id="qt-notes"></textarea></div>
+
+    <div class="approve-row">
+      <label class="check-row"><input type="checkbox" id="qt-approved"> Esta cotización ya fue aprobada</label>
+      <input type="date" id="qt-approved-date" style="max-width:150px;">
+    </div>
+
+    <div id="qt-accounting-section" hidden style="display:flex;flex-direction:column;gap:12px;">
+      <div class="field-divider">Datos para el pago (contabilidad)</div>
+      <div class="field"><label>RUT del proveedor</label><input type="text" id="qt-rut"></div>
+      <div class="row3">
+        <div class="field"><label>Banco</label><input type="text" id="qt-bank"></div>
+        <div class="field"><label>Tipo de cuenta</label>
+          <select id="qt-account-type"><option value="">—</option><option value="Ahorros">Ahorros</option><option value="Corriente">Corriente</option></select>
+        </div>
+        <div class="field"><label>N.º de cuenta</label><input type="text" id="qt-account-number"></div>
+      </div>
+
+      <div class="accounting-box">
+        <h4>Pago del 50% (abono)</h4>
+        <label class="check-row"><input type="checkbox" id="qt-deposit-paid"> Ya se pagó el 50%</label>
+        <div class="row3">
+          <div class="field"><label>Fecha de pago acordada</label><input type="date" id="qt-deposit-date"></div>
+          <div class="field"><label>Enviado a contabilidad</label><input type="date" id="qt-deposit-sent"></div>
+          <div class="field"><label>Pagado por contabilidad</label><input type="date" id="qt-deposit-acc-paid"></div>
+        </div>
+      </div>
+
+      <div class="accounting-box">
+        <h4>Pago del saldo (100%)</h4>
+        <label class="check-row"><input type="checkbox" id="qt-balance-paid"> Ya se pagó el 100%</label>
+        <div class="row3">
+          <div class="field"><label>Fecha de pago acordada</label><input type="date" id="qt-balance-date"></div>
+          <div class="field"><label>Enviado a contabilidad</label><input type="date" id="qt-balance-sent"></div>
+          <div class="field"><label>Pagado por contabilidad</label><input type="date" id="qt-balance-acc-paid"></div>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close="dlg-quote">Cancelar</button>
+      <button type="submit" class="btn-primary" id="qt-submit">Guardar cotización</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
