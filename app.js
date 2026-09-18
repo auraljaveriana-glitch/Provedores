@@ -541,19 +541,7 @@
     });
   });
 
-  /* ---------------- auth ---------------- */
-
-  var authMode = 'signin';
-  document.querySelectorAll('.auth-tab').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      document.querySelectorAll('.auth-tab').forEach(function(b){ b.classList.remove('active'); });
-      btn.classList.add('active');
-      authMode = btn.getAttribute('data-mode');
-      document.getElementById('auth-submit').textContent = authMode==='signup' ? 'Crear cuenta' : 'Entrar';
-      document.getElementById('auth-error').hidden = true;
-      document.getElementById('auth-ok').hidden = true;
-    });
-  });
+  /* ---------------- auth (solo inicio de sesión — las cuentas las crea el administrador en Supabase) ---------------- */
 
   document.getElementById('auth-form').addEventListener('submit', function(ev){
     ev.preventDefault();
@@ -565,18 +553,9 @@
     var btn = document.getElementById('auth-submit');
     btn.disabled = true;
 
-    var task = authMode==='signup'
-      ? sb.auth.signUp({ email: email, password: password })
-      : sb.auth.signInWithPassword({ email: email, password: password });
-
-    task.then(function(res){
+    sb.auth.signInWithPassword({ email: email, password: password }).then(function(res){
       btn.disabled = false;
       if(res.error){ errEl.textContent = res.error.message; errEl.hidden = false; return; }
-      if(authMode==='signup' && !(res.data && res.data.session)){
-        okEl.textContent = 'Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.';
-        okEl.hidden = false;
-        return;
-      }
       // signed in — onAuthStateChange handles showing the app
     });
   });
