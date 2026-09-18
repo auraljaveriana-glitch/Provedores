@@ -556,7 +556,12 @@
     sb.auth.signInWithPassword({ email: email, password: password }).then(function(res){
       btn.disabled = false;
       if(res.error){ errEl.textContent = res.error.message; errEl.hidden = false; return; }
-      // signed in — onAuthStateChange handles showing the app
+      var session = res.data && res.data.session;
+      if(session) handleSession(session);
+    }).catch(function(e){
+      btn.disabled = false;
+      errEl.textContent = 'No se pudo conectar: '+(e && e.message ? e.message : e);
+      errEl.hidden = false;
     });
   });
 
@@ -596,22 +601,21 @@
     sb.channel('quotes-changes').on('postgres_changes', {event:'*', schema:'public', table:'quotes'}, fetchQuotes).subscribe();
   }
 
+  function handleSession(session){
+    currentUser = session.user;
+    applyWriteGating();
+    showApp();
+    fetchProviders(); fetchQuotes(); subscribeRealtime();
+  }
+
   sb.auth.getSession().then(function(res){
     var session = res.data && res.data.session;
-    if(session){
-      currentUser = session.user;
-      applyWriteGating();
-      showApp();
-      fetchProviders(); fetchQuotes(); subscribeRealtime();
-    }
-  });
+    if(session) handleSession(session);
+  }).catch(function(e){ console.error('getSession failed', e); });
 
   sb.auth.onAuthStateChange(function(event, session){
     if(session){
-      currentUser = session.user;
-      applyWriteGating();
-      showApp();
-      fetchProviders(); fetchQuotes(); subscribeRealtime();
+      handleSession(session);
     } else {
       currentUser = null;
       applyWriteGating();
