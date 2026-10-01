@@ -56,6 +56,7 @@
           <option value="abono">Abono 50% pagado</option>
           <option value="completo">Pagado completo</option>
         </select>
+        <button class="btn-ghost" id="btn-export-quotes" type="button">⬇ Descargar datos de pago (CSV)</button>
         <button class="btn-primary" id="btn-new-quote" type="button">+ Nueva cotización</button>
       </div>
       <div id="quotes-list" class="quotes-list"></div>
@@ -65,6 +66,7 @@
     <section id="view-providers" class="view">
       <div class="toolbar">
         <input type="text" id="p-search" placeholder="Buscar proveedor por nombre o categoría…">
+        <button class="btn-ghost" id="btn-export-providers" type="button">⬇ Descargar RUT y cuentas (CSV)</button>
         <button class="btn-primary" id="btn-new-provider" type="button">+ Nuevo proveedor</button>
       </div>
       <div id="providers-grid" class="providers-grid"></div>
@@ -169,7 +171,16 @@
 
       <div class="accounting-box">
         <h4>Pago del 50% (abono)</h4>
-        <label class="check-row"><input type="checkbox" id="qt-deposit-paid"> Ya se pagó el 50%</label>
+        <label class="check-row"><input type="checkbox" id="qt-deposit-paid"> Ya se pagó el abono</label>
+        <div class="field"><label>Valor pagado</label><input type="number" min="0" step="1" id="qt-deposit-amount" placeholder="Si no fue exactamente el 50%, pon aquí el valor real"></div>
+        <div class="field">
+          <label>Comprobante del pago del abono (foto o PDF)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="file" id="qt-deposit-receipt" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" style="flex:1;min-width:0;">
+            <button type="button" class="btn-ghost" id="btn-view-deposit-receipt" hidden>Ver</button>
+          </div>
+          <span class="file-current" id="qt-deposit-receipt-current"></span>
+        </div>
         <div class="row3">
           <div class="field"><label>Fecha de pago acordada</label><input type="date" id="qt-deposit-date"></div>
           <div class="field"><label>Enviado a contabilidad</label><input type="date" id="qt-deposit-sent"></div>
@@ -179,7 +190,16 @@
 
       <div class="accounting-box">
         <h4>Pago del saldo (100%)</h4>
-        <label class="check-row"><input type="checkbox" id="qt-balance-paid"> Ya se pagó el 100%</label>
+        <label class="check-row"><input type="checkbox" id="qt-balance-paid"> Ya se pagó el saldo</label>
+        <div class="field"><label>Valor pagado</label><input type="number" min="0" step="1" id="qt-balance-amount" placeholder="Si no fue exactamente el saldo restante, pon aquí el valor real"></div>
+        <div class="field">
+          <label>Comprobante del pago del saldo (foto o PDF)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="file" id="qt-balance-receipt" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" style="flex:1;min-width:0;">
+            <button type="button" class="btn-ghost" id="btn-view-balance-receipt" hidden>Ver</button>
+          </div>
+          <span class="file-current" id="qt-balance-receipt-current"></span>
+        </div>
         <div class="row3">
           <div class="field"><label>Fecha de pago acordada</label><input type="date" id="qt-balance-date"></div>
           <div class="field"><label>Enviado a contabilidad</label><input type="date" id="qt-balance-sent"></div>
@@ -187,6 +207,14 @@
         </div>
       </div>
     </div>
+
+    <div class="field-divider">Anotaciones</div>
+    <div id="qt-annotations-list" class="annotations-list"></div>
+    <div class="annotation-add" id="qt-annotation-add-wrap" hidden>
+      <textarea id="qt-annotation-text" placeholder="Agregar una anotación (ej: contabilidad pidió factura, proveedor confirmó despacho, cambio de fecha…)"></textarea>
+      <button type="button" class="btn-ghost" id="btn-add-annotation" style="align-self:flex-start;">+ Agregar anotación</button>
+    </div>
+    <p class="hint" id="qt-annotation-hint">Guarda la cotización primero para poder agregar anotaciones.</p>
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" data-close="dlg-quote">Cancelar</button>
       <button type="submit" class="btn-primary" id="qt-submit">Guardar cotización</button>

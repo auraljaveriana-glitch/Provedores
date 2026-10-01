@@ -38,6 +38,13 @@
   function todayISO(){ return new Date().toISOString().slice(0,10); }
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function orNull(v){ return (v===undefined || v===null || v==='') ? null : v; }
+  function numOrNull(v){ v = (v==null?'':String(v)).trim(); if(v==='') return null; var n = parseFloat(v); return isNaN(n) ? null : n; }
+  function fmtDateTime(iso){
+    if(!iso) return '';
+    var d = new Date(iso);
+    if(isNaN(d)) return iso;
+    return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  }
 
   function quoteStatus(q){
     if(q.balance_paid) return {key:'completo', label:'Pagado completo'};
@@ -50,9 +57,13 @@
     return {key:'pendiente', label:'Pendiente'};
   }
   function remaining(q){
+    var total = q.amount||0;
     if(q.balance_paid) return 0;
-    if(q.deposit_paid) return (q.amount||0) * 0.5;
-    return q.amount||0;
+    if(q.deposit_paid){
+      var depPaid = (q.deposit_amount_paid!=null) ? q.deposit_amount_paid : total*0.5;
+      return Math.max(total - depPaid, 0);
+    }
+    return total;
   }
   function providerName(id){
     var p = providers.find(function(x){ return x.id===id; });
@@ -144,19 +155,28 @@
       var editBtn = document.getElementById('editq-'+q.id);
       if(editBtn) editBtn.addEventListener('click', function(){ openQuoteDialog(q.id); });
       var fileBtn = document.getElementById('file-'+q.id);
-      if(fileBtn) fileBtn.addEventListener('click', function(){ openQuoteFile(q); });
+      if(fileBtn) fileBtn.addEventListener('click', function(){ openStoredFile(q.file_path); });
+      var depReceiptBtn = document.getElementById('depreceipt-'+q.id);
+      if(depReceiptBtn) depReceiptBtn.addEventListener('click', function(){ openStoredFile(q.deposit_receipt_path); });
+      var balReceiptBtn = document.getElementById('balreceipt-'+q.id);
+      if(balReceiptBtn) balReceiptBtn.addEventListener('click', function(){ openStoredFile(q.balance_receipt_path); });
     });
   }
 
   function renderQuoteCard(q){
     var st = quoteStatus(q);
-    var fileHtml = q.file_path ? '<button type="button" class="file-link" id="file-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">📎 '+esc(q.file_name||'Ver archivo')+'</button>' : '';
+    var fileHtml = q.file_path ? '<button type="button" class="file-link" id="file-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">📎 '+esc(q.file_name||'Ver cotización')+'</button>' : '';
+    var depReceiptHtml = q.deposit_receipt_path ? '<button type="button" class="file-link" id="depreceipt-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">🧾 Comprobante abono</button>' : '';
+    var balReceiptHtml = q.balance_receipt_path ? '<button type="button" class="file-link" id="balreceipt-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">🧾 Comprobante saldo</button>' : '';
 
     var acctBits = [];
+    if(q.deposit_paid) acctBits.push('Valor abono pagado: <b>'+fmtAmount(q.deposit_amount_paid!=null?q.deposit_amount_paid:(q.amount||0)*0.5, q.currency)+'</b>');
     if(q.deposit_sent) acctBits.push('Abono env. contab.: <b>'+fmtDate(q.deposit_sent)+'</b>');
     if(q.deposit_acc_paid) acctBits.push('Abono pagado por contab.: <b>'+fmtDate(q.deposit_acc_paid)+'</b>');
+    if(q.balance_paid) acctBits.push('Valor saldo pagado: <b>'+fmtAmount(q.balance_amount_paid!=null?q.balance_amount_paid:remaining({amount:q.amount,balance_paid:false,deposit_paid:q.deposit_paid,deposit_amount_paid:q.deposit_amount_paid}), q.currency)+'</b>');
     if(q.balance_sent) acctBits.push('Saldo env. contab.: <b>'+fmtDate(q.balance_sent)+'</b>');
     if(q.balance_acc_paid) acctBits.push('Saldo pagado por contab.: <b>'+fmtDate(q.balance_acc_paid)+'</b>');
+    if(q.annotations && q.annotations.length) acctBits.push('📝 '+q.annotations.length+' anotación'+(q.annotations.length>1?'es':''));
 
     return ''+
     '<div class="qcard">'+
@@ -175,7 +195,7 @@
         (acctBits.length ? '<div class="acct-track">'+acctBits.join('<span>·</span>')+'</div>' : '')+
         (q.rut || q.account_number ? '<div class="acct-track">'+(q.rut?('RUT: <b>'+esc(q.rut)+'</b>'):'')+(q.account_number?(' · Cuenta: <b>'+esc([q.bank,q.account_type,q.account_number].filter(Boolean).join(' ')) +'</b>'):'')+'</div>' : '')+
         (q.created_by ? '<div class="acct-track">Registrada por <b>'+esc(q.created_by)+'</b>'+(q.updated_by && q.updated_by!==q.created_by ? ' · última edición por <b>'+esc(q.updated_by)+'</b>' : '')+'</div>' : '')+
-        (fileHtml ? '<div style="margin-top:8px;">'+fileHtml+'</div>' : '')+
+        (fileHtml || depReceiptHtml || balReceiptHtml ? '<div style="margin-top:8px;display:flex;gap:14px;flex-wrap:wrap;">'+fileHtml+depReceiptHtml+balReceiptHtml+'</div>' : '')+
       '</div>'+
       '<div class="side">'+
         '<span class="pill '+st.key+'">'+st.label+'</span>'+
@@ -301,7 +321,13 @@
     var q = quotes.find(function(x){ return x.id===id; });
     sb.from('quotes').delete().eq('id', id).then(function(res){
       if(res.error){ alert('No se pudo eliminar: '+res.error.message); return; }
-      if(q && q.file_path){ sb.storage.from(BUCKET).remove([q.file_path]); }
+      var toRemove = [];
+      if(q){
+        if(q.file_path) toRemove.push(q.file_path);
+        if(q.deposit_receipt_path) toRemove.push(q.deposit_receipt_path);
+        if(q.balance_receipt_path) toRemove.push(q.balance_receipt_path);
+      }
+      if(toRemove.length) sb.storage.from(BUCKET).remove(toRemove);
       fetchQuotes();
     });
   }
@@ -316,13 +342,14 @@
     });
   }
 
-  function openQuoteFile(q){
-    if(!q.file_path) return;
-    sb.storage.from(BUCKET).createSignedUrl(q.file_path, 3600).then(function(res){
+  function openStoredFile(path){
+    if(!path) return;
+    sb.storage.from(BUCKET).createSignedUrl(path, 3600).then(function(res){
       if(res.error || !res.data){ alert('No se pudo abrir el archivo.'); return; }
       window.open(res.data.signedUrl, '_blank', 'noopener');
     });
   }
+  function openQuoteFile(q){ openStoredFile(q.file_path); }
 
   /* ---------------- dialogs ---------------- */
 
@@ -346,6 +373,23 @@
     dlg.showModal();
   }
 
+  var currentAnnotationsQuoteId = null;
+  var currentDepositReceiptPath = null;
+  var currentBalanceReceiptPath = null;
+
+  function renderAnnotationsList(q){
+    var wrap = document.getElementById('qt-annotations-list');
+    var anns = (q && q.annotations) || [];
+    if(!anns.length){ wrap.innerHTML = '<p class="hint">Aún no hay anotaciones.</p>'; return; }
+    var sorted = anns.slice().sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+    wrap.innerHTML = sorted.map(function(a){
+      return '<div class="annotation-item">'+
+        '<div class="annotation-text">'+esc(a.text)+'</div>'+
+        '<div class="annotation-meta">'+esc(a.author||'')+' · '+fmtDateTime(a.date)+'</div>'+
+      '</div>';
+    }).join('');
+  }
+
   function openQuoteDialog(id){
     var dlg = document.getElementById('dlg-quote');
     var q = id ? quotes.find(function(x){ return x.id===id; }) : null;
@@ -359,13 +403,31 @@
     document.getElementById('qt-quotedate').value = q ? (q.quote_date||'') : todayISO();
     document.getElementById('qt-deposit-date').value = q ? (q.deposit_date||'') : '';
     document.getElementById('qt-deposit-paid').checked = q ? !!q.deposit_paid : false;
+    document.getElementById('qt-deposit-amount').value = (q && q.deposit_amount_paid!=null) ? q.deposit_amount_paid : '';
     document.getElementById('qt-deposit-sent').value = q ? (q.deposit_sent||'') : '';
     document.getElementById('qt-deposit-acc-paid').value = q ? (q.deposit_acc_paid||'') : '';
     document.getElementById('qt-balance-date').value = q ? (q.balance_date||'') : '';
     document.getElementById('qt-balance-paid').checked = q ? !!q.balance_paid : false;
+    document.getElementById('qt-balance-amount').value = (q && q.balance_amount_paid!=null) ? q.balance_amount_paid : '';
     document.getElementById('qt-balance-sent').value = q ? (q.balance_sent||'') : '';
     document.getElementById('qt-balance-acc-paid').value = q ? (q.balance_acc_paid||'') : '';
     document.getElementById('qt-notes').value = q ? (q.notes||'') : '';
+
+    currentDepositReceiptPath = q ? (q.deposit_receipt_path||null) : null;
+    document.getElementById('qt-deposit-receipt').value = '';
+    document.getElementById('qt-deposit-receipt-current').textContent = q && q.deposit_receipt_name ? ('Archivo actual: '+q.deposit_receipt_name) : '';
+    document.getElementById('btn-view-deposit-receipt').hidden = !currentDepositReceiptPath;
+
+    currentBalanceReceiptPath = q ? (q.balance_receipt_path||null) : null;
+    document.getElementById('qt-balance-receipt').value = '';
+    document.getElementById('qt-balance-receipt-current').textContent = q && q.balance_receipt_name ? ('Archivo actual: '+q.balance_receipt_name) : '';
+    document.getElementById('btn-view-balance-receipt').hidden = !currentBalanceReceiptPath;
+
+    currentAnnotationsQuoteId = q ? q.id : null;
+    document.getElementById('qt-annotation-add-wrap').hidden = !q;
+    document.getElementById('qt-annotation-hint').hidden = !!q;
+    document.getElementById('qt-annotation-text').value = '';
+    renderAnnotationsList(q);
     document.getElementById('qt-file').value = '';
     document.getElementById('qt-file-current').textContent = q && q.file_name ? ('Archivo actual: '+q.file_name) : '';
 
@@ -392,6 +454,44 @@
     if(this.checked && !document.getElementById('qt-approved-date').value){
       document.getElementById('qt-approved-date').value = todayISO();
     }
+  });
+
+  document.getElementById('qt-deposit-paid').addEventListener('change', function(){
+    if(this.checked && !document.getElementById('qt-deposit-amount').value){
+      var amt = parseFloat(document.getElementById('qt-amount').value)||0;
+      document.getElementById('qt-deposit-amount').value = amt ? Math.round(amt*0.5) : '';
+    }
+  });
+  document.getElementById('qt-balance-paid').addEventListener('change', function(){
+    if(this.checked && !document.getElementById('qt-balance-amount').value){
+      var amt = parseFloat(document.getElementById('qt-amount').value)||0;
+      var dep = parseFloat(document.getElementById('qt-deposit-amount').value)||0;
+      document.getElementById('qt-balance-amount').value = amt ? Math.max(Math.round(amt-dep),0) : '';
+    }
+  });
+
+  document.getElementById('btn-view-deposit-receipt').addEventListener('click', function(){ openStoredFile(currentDepositReceiptPath); });
+  document.getElementById('btn-view-balance-receipt').addEventListener('click', function(){ openStoredFile(currentBalanceReceiptPath); });
+
+  document.getElementById('btn-add-annotation').addEventListener('click', function(){
+    var id = currentAnnotationsQuoteId;
+    if(!id) return;
+    var textEl = document.getElementById('qt-annotation-text');
+    var text = textEl.value.trim();
+    if(!text) return;
+    var q = quotes.find(function(x){ return x.id===id; });
+    if(!q) return;
+    var ann = { text: text, author: currentUser ? currentUser.email : '', date: new Date().toISOString() };
+    var newAnns = (q.annotations||[]).concat([ann]);
+    var btn = this;
+    btn.disabled = true;
+    sb.from('quotes').update({ annotations: newAnns, updated_by: currentUser ? currentUser.email : null }).eq('id', id).then(function(res){
+      btn.disabled = false;
+      if(res.error){ alert('No se pudo guardar la anotación: '+res.error.message); return; }
+      q.annotations = newAnns;
+      textEl.value = '';
+      renderAnnotationsList(q);
+    });
   });
 
   document.getElementById('qt-provider').addEventListener('change', function(){
@@ -462,10 +562,12 @@
       quote_date: orNull(document.getElementById('qt-quotedate').value),
       deposit_date: orNull(document.getElementById('qt-deposit-date').value),
       deposit_paid: document.getElementById('qt-deposit-paid').checked,
+      deposit_amount_paid: numOrNull(document.getElementById('qt-deposit-amount').value),
       deposit_sent: orNull(document.getElementById('qt-deposit-sent').value),
       deposit_acc_paid: orNull(document.getElementById('qt-deposit-acc-paid').value),
       balance_date: orNull(document.getElementById('qt-balance-date').value),
       balance_paid: document.getElementById('qt-balance-paid').checked,
+      balance_amount_paid: numOrNull(document.getElementById('qt-balance-amount').value),
       balance_sent: orNull(document.getElementById('qt-balance-sent').value),
       balance_acc_paid: orNull(document.getElementById('qt-balance-acc-paid').value),
       approved: document.getElementById('qt-approved').checked,
@@ -479,8 +581,6 @@
     Object.assign(data, meta(!id));
     if(!data.provider_id || !data.description) return;
 
-    var fileInput = document.getElementById('qt-file');
-    var file = fileInput.files && fileInput.files[0];
     var submitBtn = document.getElementById('qt-submit');
     submitBtn.disabled = true;
     uploading = true;
@@ -489,31 +589,37 @@
       return id ? sb.from('quotes').update(data).eq('id', id) : sb.from('quotes').insert(data).select().single();
     }
 
-    var chain;
-    if(file){
-      var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      var path = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())) + '-' + safeName;
-      chain = sb.storage.from(BUCKET).upload(path, file).then(function(res){
-        if(res.error) throw res.error;
-        data.file_path = path;
-        data.file_name = file.name;
-        data.file_type = file.type;
-        return saveRow();
-      }).then(function(res){
-        if(res.error) throw res.error;
-        if(existing && existing.file_path && existing.file_path !== path){
-          sb.storage.from(BUCKET).remove([existing.file_path]);
-        }
-        return res;
-      });
-    } else {
-      chain = saveRow();
-    }
+    var fileJobs = [
+      { input: document.getElementById('qt-file'), pathField:'file_path', nameField:'file_name', typeField:'file_type', oldPath: existing && existing.file_path, prefix:'' },
+      { input: document.getElementById('qt-deposit-receipt'), pathField:'deposit_receipt_path', nameField:'deposit_receipt_name', typeField:'deposit_receipt_type', oldPath: existing && existing.deposit_receipt_path, prefix:'abono-' },
+      { input: document.getElementById('qt-balance-receipt'), pathField:'balance_receipt_path', nameField:'balance_receipt_name', typeField:'balance_receipt_type', oldPath: existing && existing.balance_receipt_path, prefix:'saldo-' }
+    ];
+    var oldPathsToRemove = [];
 
-    Promise.resolve(chain).then(function(res){
+    var chain = Promise.resolve();
+    fileJobs.forEach(function(job){
+      var file = job.input.files && job.input.files[0];
+      if(!file) return;
+      chain = chain.then(function(){
+        var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        var path = job.prefix + (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())) + '-' + safeName;
+        return sb.storage.from(BUCKET).upload(path, file).then(function(res){
+          if(res.error) throw res.error;
+          data[job.pathField] = path;
+          data[job.nameField] = file.name;
+          data[job.typeField] = file.type;
+          if(job.oldPath) oldPathsToRemove.push(job.oldPath);
+        });
+      });
+    });
+
+    chain.then(function(){
+      return saveRow();
+    }).then(function(res){
+      if(res && res.error) throw res.error;
       submitBtn.disabled = false;
       uploading = false;
-      if(res && res.error){ alert('No se pudo guardar la cotización: '+res.error.message); return; }
+      if(oldPathsToRemove.length) sb.storage.from(BUCKET).remove(oldPathsToRemove);
       document.getElementById('dlg-quote').close();
       fetchQuotes();
     }).catch(function(e){
@@ -521,6 +627,46 @@
       uploading = false;
       alert('No se pudo guardar la cotización: '+(e && e.message ? e.message : e));
     });
+  });
+
+  /* ---------------- exportar CSV ---------------- */
+
+  function csvEscape(v){
+    if(v==null) return '';
+    var s = String(v);
+    if(/[",\n;]/.test(s)) s = '"'+s.replace(/"/g,'""')+'"';
+    return s;
+  }
+  function downloadCSV(filename, rows){
+    var csv = rows.map(function(r){ return r.map(csvEscape).join(','); }).join('\r\n');
+    var blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  }
+
+  document.getElementById('btn-export-providers').addEventListener('click', function(){
+    var header = ['Proveedor','Código','Categoría','Contacto','Teléfono','Correo','Ciudad','RUT','Banco','Tipo de cuenta','N. de cuenta','Notas'];
+    var rows = [header].concat(providers.map(function(p){
+      return [p.name,p.code,p.category,p.contact,p.phone,p.email,p.city,p.rut,p.bank,p.account_type,p.account_number,p.notes];
+    }));
+    downloadCSV('proveedores_rut_cuentas_'+todayISO()+'.csv', rows);
+  });
+
+  document.getElementById('btn-export-quotes').addEventListener('click', function(){
+    var header = ['Proveedor','Descripción','Valor total','Moneda','Aprobada','RUT','Banco','Tipo de cuenta','N. de cuenta',
+      'Abono pagado','Valor abono pagado','Abono enviado a contab.','Abono pagado por contab.',
+      'Saldo pagado','Valor saldo pagado','Saldo enviado a contab.','Saldo pagado por contab.','Notas'];
+    var rows = [header].concat(quotes.map(function(q){
+      return [providerName(q.provider_id), q.description, q.amount, q.currency, q.approved?'Sí':'No',
+        q.rut, q.bank, q.account_type, q.account_number,
+        q.deposit_paid?'Sí':'No', q.deposit_amount_paid!=null?q.deposit_amount_paid:'', q.deposit_sent, q.deposit_acc_paid,
+        q.balance_paid?'Sí':'No', q.balance_amount_paid!=null?q.balance_amount_paid:'', q.balance_sent, q.balance_acc_paid,
+        q.notes];
+    }));
+    downloadCSV('cotizaciones_pagos_'+todayISO()+'.csv', rows);
   });
 
   /* ---------------- filters/tabs ---------------- */

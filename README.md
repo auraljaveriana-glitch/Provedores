@@ -13,10 +13,14 @@ Es un sitio estático (HTML + CSS + JS, sin instalación ni build) que usa **Sup
    - **Publishable key** (`sb_publishable_...`) — nunca la **Secret key** (`sb_secret_...`), esa nunca va en el sitio.
 4. Abre el archivo [`supabase-config.js`](supabase-config.js) de este proyecto y pega esos dos valores en lugar de los textos de ejemplo.
 
-### Importante — quién puede crear cuenta
-Por defecto, Supabase permite que cualquiera con el link se registre con su correo. Como aquí se maneja RUT y cuentas bancarias de proveedores, te recomendamos:
-- Ir a **Authentication → Providers → Email** y, cuando ya tengan las cuentas del equipo creadas, desactivar "Allow new users to sign up".
-- O crear tú mismo las cuentas del equipo desde **Authentication → Users → Add user**, en vez de dejar el registro abierto.
+### Quién puede entrar — las cuentas las creas tú
+El sitio ya NO tiene opción de "Crear cuenta": solo se puede iniciar sesión. Para que alguien del equipo entre, tú le creas la cuenta desde el panel de Supabase:
+
+1. **Authentication → Users → Add user**.
+2. Escribe su correo y una contraseña temporal (o marca "Auto Confirm User" para que no necesite confirmar por correo).
+3. Comparte con esa persona su correo y contraseña para que inicie sesión — puede cambiarla después si agregas esa opción, o dásela ya definitiva.
+
+Además, por seguridad, ve a **Authentication → Providers → Email** y desactiva **"Allow new users to sign up"** — así, aunque alguien intente registrarse por su cuenta (por ejemplo llamando directamente a la API), Supabase lo rechaza. El sitio ya no ofrece ese botón, pero esto cierra la puerta también a nivel de Supabase.
 
 ## 2. Subir el proyecto a GitHub
 
@@ -57,9 +61,22 @@ Todos los archivos van sueltos en la raíz del repositorio (sin subcarpetas) —
 
 ## Uso
 
-- Cada persona crea su cuenta con su correo y contraseña (pestaña "Crear cuenta" en la pantalla de entrada) o inicia sesión si ya la tiene.
+- Cada persona inicia sesión con el correo y la contraseña que tú le creaste (ver sección anterior).
 - **Cotizaciones**: registra cada cotización con su proveedor, valor, archivo adjunto y fechas de pago del 50% y del saldo. Al marcarla como aprobada, se despliegan los datos para el trámite con contabilidad (RUT, cuenta bancaria, fecha de envío y fecha de pago).
+  - En cada pago (abono y saldo) puedes indicar el **valor realmente pagado** — por defecto sugiere el 50%, pero lo puedes cambiar cuando pagan un valor distinto.
+  - En cada pago también puedes adjuntar la **foto o el PDF del comprobante** de ese pago (abono y saldo por separado), y luego verlo con el botón "Ver".
+  - Puedes ir agregando **anotaciones** con fecha y autor a cada cotización en cualquier momento (incluso después de que ya se pagó), para dejar constancia de novedades, acuerdos o cambios.
 - **Proveedores**: directorio con qué vende cada uno, contacto, RUT y cuenta bancaria.
 - **Comparar**: busca un producto o servicio y compara lo que ofrece cada proveedor para eso mismo.
+- **Descargar en CSV**: tanto en "Proveedores" como en "Cotizaciones" hay un botón para descargar un archivo CSV (se abre en Excel) con el RUT y las cuentas bancarias, o con los datos de pago de cada cotización.
 
 Cada proveedor y cotización queda marcado con el correo de quién lo creó y quién lo editó por última vez.
+
+## Si ya tenías el sitio funcionando (actualización)
+
+Esta versión agrega valor pagado real, comprobantes de pago, anotaciones y descarga en CSV. Para que funcione con los datos que ya tienes en Supabase:
+
+1. Entra a Supabase → **SQL Editor** → **New query**.
+2. Abre [`schema.sql`](schema.sql) y copia solo el bloque final, bajo el título **"ACTUALIZACIÓN: valor realmente pagado y anotaciones"**.
+3. Pégalo y dale **Run**. No borra ni cambia nada de lo que ya tenías, solo agrega las columnas nuevas.
+4. Reemplaza en tu repositorio de GitHub los archivos `index.html`, `app.js` y `styles.css` por los nuevos.

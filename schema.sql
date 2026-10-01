@@ -103,3 +103,17 @@ create policy "cotizaciones_files_delete" on storage.objects
 -- Habilita en tiempo real (para que los cambios se vean al instante entre varias personas)
 alter publication supabase_realtime add table public.providers;
 alter publication supabase_realtime add table public.quotes;
+
+-- ---------- ACTUALIZACIÓN: valor realmente pagado y anotaciones ----------
+-- Si ya habías creado las tablas antes (ya tenías el sitio funcionando), entra a
+-- Supabase > SQL Editor > New query, pega SOLO este bloque de aquí hacia abajo y dale Run.
+-- No borra ni daña nada de lo que ya tienes.
+alter table public.quotes add column if not exists deposit_amount_paid numeric;
+alter table public.quotes add column if not exists balance_amount_paid numeric;
+alter table public.quotes add column if not exists annotations jsonb not null default '[]'::jsonb;
+alter table public.quotes add column if not exists deposit_receipt_path text;
+alter table public.quotes add column if not exists deposit_receipt_name text;
+alter table public.quotes add column if not exists deposit_receipt_type text;
+alter table public.quotes add column if not exists balance_receipt_path text;
+alter table public.quotes add column if not exists balance_receipt_name text;
+alter table public.quotes add column if not exists balance_receipt_type text;
