@@ -230,6 +230,10 @@
           (p.rut ? 'RUT: <b style="color:var(--text)">'+esc(p.rut)+'</b><br>' : '')+
           (cuenta ? 'Cuenta: '+esc(cuenta) : '')+
         '</div>' : '')+
+        (p.rut_file_path || p.bank_file_path ? '<div style="display:flex;gap:12px;flex-wrap:wrap;">'+
+          (p.rut_file_path ? '<button type="button" class="file-link" id="prutfile-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">🧾 Doc. RUT</button>' : '')+
+          (p.bank_file_path ? '<button type="button" class="file-link" id="pbankfile-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">🧾 Cert. bancario</button>' : '')+
+        '</div>' : '')+
         '<div class="count">Cotizaciones: <b>'+qCount+'</b></div>'+
         (p.created_by ? '<div class="count">Agregado por <b>'+esc(p.created_by)+'</b></div>' : '')+
         (canWrite ? '<div class="actions"><button class="btn-text" id="editp-'+p.id+'" type="button">Editar</button><button class="btn-text danger" id="delp-'+p.id+'" type="button">Eliminar</button></div>' : '')+
@@ -241,6 +245,10 @@
       var delBtn = document.getElementById('delp-'+p.id);
       if(editBtn) editBtn.addEventListener('click', function(){ openProviderDialog(p.id); });
       if(delBtn) delBtn.addEventListener('click', function(){ deleteProvider(p.id); });
+      var rutFileBtn = document.getElementById('prutfile-'+p.id);
+      if(rutFileBtn) rutFileBtn.addEventListener('click', function(){ openStoredFile(p.rut_file_path); });
+      var bankFileBtn = document.getElementById('pbankfile-'+p.id);
+      if(bankFileBtn) bankFileBtn.addEventListener('click', function(){ openStoredFile(p.bank_file_path); });
     });
   }
 
@@ -336,8 +344,15 @@
     var has = quotes.some(function(q){ return q.provider_id===id; });
     var msg = has ? '¿Eliminar este proveedor? Sus cotizaciones existentes quedarán como "proveedor eliminado".' : '¿Eliminar este proveedor?';
     if(!confirm(msg)) return;
+    var p = providers.find(function(x){ return x.id===id; });
     sb.from('providers').delete().eq('id', id).then(function(res){
       if(res.error){ alert('No se pudo eliminar: '+res.error.message); return; }
+      var toRemove = [];
+      if(p){
+        if(p.rut_file_path) toRemove.push(p.rut_file_path);
+        if(p.bank_file_path) toRemove.push(p.bank_file_path);
+      }
+      if(toRemove.length) sb.storage.from(BUCKET).remove(toRemove);
       fetchProviders(); fetchQuotes();
     });
   }
@@ -352,6 +367,9 @@
   function openQuoteFile(q){ openStoredFile(q.file_path); }
 
   /* ---------------- dialogs ---------------- */
+
+  var currentProviderRutFilePath = null;
+  var currentProviderBankFilePath = null;
 
   function openProviderDialog(id){
     var dlg = document.getElementById('dlg-provider');
@@ -370,6 +388,17 @@
     document.getElementById('pv-account-type').value = p ? (p.account_type||'') : '';
     document.getElementById('pv-account-number').value = p ? (p.account_number||'') : '';
     document.getElementById('pv-notes').value = p ? (p.notes||'') : '';
+
+    currentProviderRutFilePath = p ? (p.rut_file_path||null) : null;
+    document.getElementById('pv-rut-file').value = '';
+    document.getElementById('pv-rut-file-current').textContent = p && p.rut_file_name ? ('Archivo actual: '+p.rut_file_name) : '';
+    document.getElementById('btn-view-pv-rut-file').hidden = !currentProviderRutFilePath;
+
+    currentProviderBankFilePath = p ? (p.bank_file_path||null) : null;
+    document.getElementById('pv-bank-file').value = '';
+    document.getElementById('pv-bank-file-current').textContent = p && p.bank_file_name ? ('Archivo actual: '+p.bank_file_name) : '';
+    document.getElementById('btn-view-pv-bank-file').hidden = !currentProviderBankFilePath;
+
     dlg.showModal();
   }
 
@@ -470,6 +499,9 @@
     }
   });
 
+  document.getElementById('btn-view-pv-rut-file').addEventListener('click', function(){ openStoredFile(currentProviderRutFilePath); });
+  document.getElementById('btn-view-pv-bank-file').addEventListener('click', function(){ openStoredFile(currentProviderBankFilePath); });
+
   document.getElementById('btn-view-deposit-receipt').addEventListener('click', function(){ openStoredFile(currentDepositReceiptPath); });
   document.getElementById('btn-view-balance-receipt').addEventListener('click', function(){ openStoredFile(currentBalanceReceiptPath); });
 
@@ -520,6 +552,7 @@
   document.getElementById('form-provider').addEventListener('submit', function(ev){
     ev.preventDefault();
     var id = document.getElementById('pv-id').value;
+    var existing = id ? providers.find(function(x){ return x.id===id; }) : null;
     var data = {
       name: document.getElementById('pv-name').value.trim(),
       category: document.getElementById('pv-category').value.trim(),
@@ -539,13 +572,46 @@
 
     var submitBtn = document.getElementById('dlg-provider').querySelector('button[type=submit]');
     submitBtn.disabled = true;
-    var task = id ? sb.from('providers').update(data).eq('id', id) : sb.from('providers').insert(data).select().single();
-    task.then(function(res){
+
+    function saveRow(){
+      return id ? sb.from('providers').update(data).eq('id', id) : sb.from('providers').insert(data).select().single();
+    }
+
+    var fileJobs = [
+      { input: document.getElementById('pv-rut-file'), pathField:'rut_file_path', nameField:'rut_file_name', typeField:'rut_file_type', oldPath: existing && existing.rut_file_path, prefix:'rut-' },
+      { input: document.getElementById('pv-bank-file'), pathField:'bank_file_path', nameField:'bank_file_name', typeField:'bank_file_type', oldPath: existing && existing.bank_file_path, prefix:'cuenta-' }
+    ];
+    var oldPathsToRemove = [];
+
+    var chain = Promise.resolve();
+    fileJobs.forEach(function(job){
+      var file = job.input.files && job.input.files[0];
+      if(!file) return;
+      chain = chain.then(function(){
+        var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        var path = job.prefix + (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())) + '-' + safeName;
+        return sb.storage.from(BUCKET).upload(path, file).then(function(res){
+          if(res.error) throw res.error;
+          data[job.pathField] = path;
+          data[job.nameField] = file.name;
+          data[job.typeField] = file.type;
+          if(job.oldPath) oldPathsToRemove.push(job.oldPath);
+        });
+      });
+    });
+
+    chain.then(function(){
+      return saveRow();
+    }).then(function(res){
+      if(res && res.error) throw res.error;
       submitBtn.disabled = false;
-      if(res.error){ alert('No se pudo guardar: '+res.error.message); return; }
+      if(oldPathsToRemove.length) sb.storage.from(BUCKET).remove(oldPathsToRemove);
       if(!id && res.data && res.data.id) lastCreatedProviderId = res.data.id;
       document.getElementById('dlg-provider').close();
       fetchProviders();
+    }).catch(function(e){
+      submitBtn.disabled = false;
+      alert('No se pudo guardar el proveedor: '+(e && e.message ? e.message : e));
     });
   });
 

@@ -112,12 +112,28 @@
     </div>
     <div class="field-divider">Datos para pagos</div>
     <div class="field"><label>RUT</label><input type="text" id="pv-rut" placeholder="Número de RUT del proveedor"></div>
+    <div class="field">
+      <label>Documento del RUT (foto o PDF)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="file" id="pv-rut-file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" style="flex:1;min-width:0;">
+        <button type="button" class="btn-ghost" id="btn-view-pv-rut-file" hidden>Ver</button>
+      </div>
+      <span class="file-current" id="pv-rut-file-current"></span>
+    </div>
     <div class="row3">
       <div class="field"><label>Banco</label><input type="text" id="pv-bank"></div>
       <div class="field"><label>Tipo de cuenta</label>
         <select id="pv-account-type"><option value="">—</option><option value="Ahorros">Ahorros</option><option value="Corriente">Corriente</option></select>
       </div>
       <div class="field"><label>N.º de cuenta</label><input type="text" id="pv-account-number"></div>
+    </div>
+    <div class="field">
+      <label>Certificado bancario / comprobante de la cuenta (foto o PDF)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="file" id="pv-bank-file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" style="flex:1;min-width:0;">
+        <button type="button" class="btn-ghost" id="btn-view-pv-bank-file" hidden>Ver</button>
+      </div>
+      <span class="file-current" id="pv-bank-file-current"></span>
     </div>
     <div class="field"><label>Notas</label><textarea id="pv-notes" placeholder="Condiciones, tiempos de entrega, acuerdos…"></textarea></div>
     <div class="dlg-actions">

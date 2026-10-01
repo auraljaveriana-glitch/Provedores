@@ -101,8 +101,21 @@ create policy "cotizaciones_files_delete" on storage.objects
   for delete to authenticated using (bucket_id = 'cotizaciones-files');
 
 -- Habilita en tiempo real (para que los cambios se vean al instante entre varias personas)
-alter publication supabase_realtime add table public.providers;
-alter publication supabase_realtime add table public.quotes;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'providers'
+  ) then
+    alter publication supabase_realtime add table public.providers;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'quotes'
+  ) then
+    alter publication supabase_realtime add table public.quotes;
+  end if;
+end $$;
 
 -- ---------- ACTUALIZACIÓN: valor realmente pagado y anotaciones ----------
 -- Si ya habías creado las tablas antes (ya tenías el sitio funcionando), entra a
@@ -117,3 +130,9 @@ alter table public.quotes add column if not exists deposit_receipt_type text;
 alter table public.quotes add column if not exists balance_receipt_path text;
 alter table public.quotes add column if not exists balance_receipt_name text;
 alter table public.quotes add column if not exists balance_receipt_type text;
+alter table public.providers add column if not exists rut_file_path text;
+alter table public.providers add column if not exists rut_file_name text;
+alter table public.providers add column if not exists rut_file_type text;
+alter table public.providers add column if not exists bank_file_path text;
+alter table public.providers add column if not exists bank_file_name text;
+alter table public.providers add column if not exists bank_file_type text;

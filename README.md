@@ -66,7 +66,7 @@ Todos los archivos van sueltos en la raíz del repositorio (sin subcarpetas) —
   - En cada pago (abono y saldo) puedes indicar el **valor realmente pagado** — por defecto sugiere el 50%, pero lo puedes cambiar cuando pagan un valor distinto.
   - En cada pago también puedes adjuntar la **foto o el PDF del comprobante** de ese pago (abono y saldo por separado), y luego verlo con el botón "Ver".
   - Puedes ir agregando **anotaciones** con fecha y autor a cada cotización en cualquier momento (incluso después de que ya se pagó), para dejar constancia de novedades, acuerdos o cambios.
-- **Proveedores**: directorio con qué vende cada uno, contacto, RUT y cuenta bancaria.
+- **Proveedores**: directorio con qué vende cada uno, contacto, RUT y cuenta bancaria. A cada proveedor le puedes subir la **foto o el PDF del documento del RUT** y del **certificado bancario / comprobante de la cuenta**, y después abrirlos con el botón "Ver" cuando los necesites.
 - **Comparar**: busca un producto o servicio y compara lo que ofrece cada proveedor para eso mismo.
 - **Descargar en CSV**: tanto en "Proveedores" como en "Cotizaciones" hay un botón para descargar un archivo CSV (se abre en Excel) con el RUT y las cuentas bancarias, o con los datos de pago de cada cotización.
 
