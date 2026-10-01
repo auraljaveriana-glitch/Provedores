@@ -137,6 +137,21 @@
   .tab:hover{background:var(--surface-2);}
   .tab.active{background:var(--tab-active-bg);color:var(--tab-active-fg);}
 
+  /* ---------- Banner de saldo pendiente ---------- */
+  .pending-banner{
+    background:linear-gradient(135deg, var(--navy), var(--navy-soft));
+    color:#fff;border-radius:var(--radius-lg);padding:18px 22px;margin-bottom:16px;
+    display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center;justify-content:space-between;
+    box-shadow:var(--shadow);
+  }
+  .pending-banner.ok{background:linear-gradient(135deg, var(--ok), var(--accent-strong));}
+  .pending-banner .pb-main{display:flex;flex-direction:column;gap:2px;}
+  .pending-banner .pb-label{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.85;}
+  .pending-banner .pb-amount{font-family:"Montserrat",sans-serif;font-weight:800;font-size:clamp(22px,4vw,30px);font-variant-numeric:tabular-nums;}
+  .pending-banner .pb-breakdown{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;opacity:.95;}
+  .pending-banner .pb-breakdown b{font-variant-numeric:tabular-nums;}
+  .pending-banner .pb-overdue{color:#FFE1E1;}
+
   /* ---------- Stat tiles ---------- */
   .stats{
     display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:26px;

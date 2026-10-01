@@ -75,6 +75,8 @@
   function renderStats(){
     var total = quotes.length;
     var pendiente=0, abono=0, completo=0, valorCOP=0, saldoCOP=0, aprobadas=0;
+    var saldoByCurrency = {};
+    var overdueByCurrency = {};
     quotes.forEach(function(q){
       var st = quoteStatus(q).key;
       if(st==='completo') completo++;
@@ -82,6 +84,13 @@
       else abono++;
       if(q.approved) aprobadas++;
       if(q.currency==='COP'){ valorCOP += (q.amount||0); saldoCOP += remaining(q); }
+
+      var rem = remaining(q);
+      if(rem > 0){
+        var cur = q.currency || 'COP';
+        saldoByCurrency[cur] = (saldoByCurrency[cur]||0) + rem;
+        if(st==='atrasado') overdueByCurrency[cur] = (overdueByCurrency[cur]||0) + rem;
+      }
     });
     var tiles = [
       {n: total, l:'Cotizaciones registradas'},
@@ -95,6 +104,37 @@
     document.getElementById('stats').innerHTML = tiles.map(function(t){
       return '<div class="stat'+(t.accent?' accent':'')+'"><div class="num">'+t.n+'</div><div class="label">'+t.l+'</div></div>';
     }).join('');
+
+    renderPendingBanner(saldoByCurrency, overdueByCurrency);
+  }
+
+  function renderPendingBanner(saldoByCurrency, overdueByCurrency){
+    var banner = document.getElementById('pending-banner');
+    if(!quotes.length){ banner.hidden = true; banner.innerHTML=''; banner.className='pending-banner'; return; }
+
+    var currencies = Object.keys(saldoByCurrency).filter(function(c){ return saldoByCurrency[c] > 0.01; });
+    banner.hidden = false;
+
+    if(!currencies.length){
+      banner.className = 'pending-banner ok';
+      banner.innerHTML = '<div class="pb-main"><span class="pb-label">Pagos a proveedores</span><span class="pb-amount">✓ No hay saldos pendientes</span></div>';
+      return;
+    }
+
+    banner.className = 'pending-banner';
+    var mainCur = currencies.indexOf('COP')!==-1 ? 'COP' : currencies[0];
+    var others = currencies.filter(function(c){ return c!==mainCur; });
+    var overdueTotal = overdueByCurrency[mainCur] || 0;
+
+    banner.innerHTML = ''+
+      '<div class="pb-main">'+
+        '<span class="pb-label">Falta por pagar a proveedores</span>'+
+        '<span class="pb-amount">'+fmtAmount(saldoByCurrency[mainCur], mainCur)+'</span>'+
+      '</div>'+
+      '<div class="pb-breakdown">'+
+        others.map(function(c){ return 'En '+esc(c)+': <b>'+fmtAmount(saldoByCurrency[c], c)+'</b>'; }).join('')+
+        (overdueTotal > 0.01 ? '<span class="pb-overdue">⚠ Atrasado: <b>'+fmtAmount(overdueTotal, mainCur)+'</b></span>' : '')+
+      '</div>';
   }
 
   function renderProviderOptions(){
