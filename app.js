@@ -240,6 +240,7 @@
       '<div class="side">'+
         '<span class="pill '+st.key+'">'+st.label+'</span>'+
         '<span class="amount">'+fmtAmount(q.amount, q.currency)+'</span>'+
+        (remaining(q) > 0.01 ? '<span class="amount-due">Falta: '+fmtAmount(remaining(q), q.currency)+'</span>' : '<span class="amount-paid">Sin saldo pendiente</span>')+
         (canWrite ? '<div class="actions"><button class="btn-text" id="editq-'+q.id+'" type="button">Editar</button><button class="btn-text danger" id="delq-'+q.id+'" type="button">Eliminar</button></div>' : '')+
       '</div>'+
     '</div>';
@@ -775,11 +776,11 @@
   });
 
   document.getElementById('btn-export-quotes').addEventListener('click', function(){
-    var header = ['Proveedor','Descripción','Valor total','Moneda','Aprobada','RUT','Banco','Tipo de cuenta','N. de cuenta',
+    var header = ['Proveedor','Descripción','Valor total','Moneda','Falta por pagar','Aprobada','RUT','Banco','Tipo de cuenta','N. de cuenta',
       'Abono pagado','Valor abono pagado','Abono enviado a contab.','Abono pagado por contab.',
       'Saldo pagado','Valor saldo pagado','Saldo enviado a contab.','Saldo pagado por contab.','Notas'];
     var rows = [header].concat(quotes.map(function(q){
-      return [providerName(q.provider_id), q.description, q.amount, q.currency, q.approved?'Sí':'No',
+      return [providerName(q.provider_id), q.description, q.amount, q.currency, remaining(q), q.approved?'Sí':'No',
         q.rut, q.bank, q.account_type, q.account_number,
         q.deposit_paid?'Sí':'No', q.deposit_amount_paid!=null?q.deposit_amount_paid:'', q.deposit_sent, q.deposit_acc_paid,
         q.balance_paid?'Sí':'No', q.balance_amount_paid!=null?q.balance_amount_paid:'', q.balance_sent, q.balance_acc_paid,
