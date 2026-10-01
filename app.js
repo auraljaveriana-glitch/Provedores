@@ -155,19 +155,19 @@
       var editBtn = document.getElementById('editq-'+q.id);
       if(editBtn) editBtn.addEventListener('click', function(){ openQuoteDialog(q.id); });
       var fileBtn = document.getElementById('file-'+q.id);
-      if(fileBtn) fileBtn.addEventListener('click', function(){ openStoredFile(q.file_path); });
+      if(fileBtn) fileBtn.addEventListener('click', function(){ downloadStoredFile(q.file_path, q.file_name); });
       var depReceiptBtn = document.getElementById('depreceipt-'+q.id);
-      if(depReceiptBtn) depReceiptBtn.addEventListener('click', function(){ openStoredFile(q.deposit_receipt_path); });
+      if(depReceiptBtn) depReceiptBtn.addEventListener('click', function(){ downloadStoredFile(q.deposit_receipt_path, q.deposit_receipt_name); });
       var balReceiptBtn = document.getElementById('balreceipt-'+q.id);
-      if(balReceiptBtn) balReceiptBtn.addEventListener('click', function(){ openStoredFile(q.balance_receipt_path); });
+      if(balReceiptBtn) balReceiptBtn.addEventListener('click', function(){ downloadStoredFile(q.balance_receipt_path, q.balance_receipt_name); });
     });
   }
 
   function renderQuoteCard(q){
     var st = quoteStatus(q);
-    var fileHtml = q.file_path ? '<button type="button" class="file-link" id="file-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">📎 '+esc(q.file_name||'Ver cotización')+'</button>' : '';
-    var depReceiptHtml = q.deposit_receipt_path ? '<button type="button" class="file-link" id="depreceipt-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">🧾 Comprobante abono</button>' : '';
-    var balReceiptHtml = q.balance_receipt_path ? '<button type="button" class="file-link" id="balreceipt-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">🧾 Comprobante saldo</button>' : '';
+    var fileHtml = q.file_path ? '<button type="button" class="file-link" id="file-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">⬇ '+esc(q.file_name?('Descargar: '+q.file_name):'Descargar cotización')+'</button>' : '';
+    var depReceiptHtml = q.deposit_receipt_path ? '<button type="button" class="file-link" id="depreceipt-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">⬇ Comprobante abono</button>' : '';
+    var balReceiptHtml = q.balance_receipt_path ? '<button type="button" class="file-link" id="balreceipt-'+q.id+'" style="background:none;border:none;padding:0;cursor:pointer;">⬇ Comprobante saldo</button>' : '';
 
     var acctBits = [];
     if(q.deposit_paid) acctBits.push('Valor abono pagado: <b>'+fmtAmount(q.deposit_amount_paid!=null?q.deposit_amount_paid:(q.amount||0)*0.5, q.currency)+'</b>');
@@ -231,8 +231,8 @@
           (cuenta ? 'Cuenta: '+esc(cuenta) : '')+
         '</div>' : '')+
         (p.rut_file_path || p.bank_file_path ? '<div style="display:flex;gap:12px;flex-wrap:wrap;">'+
-          (p.rut_file_path ? '<button type="button" class="file-link" id="prutfile-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">🧾 Doc. RUT</button>' : '')+
-          (p.bank_file_path ? '<button type="button" class="file-link" id="pbankfile-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">🧾 Cert. bancario</button>' : '')+
+          (p.rut_file_path ? '<button type="button" class="file-link" id="prutfile-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">⬇ Descargar RUT</button>' : '')+
+          (p.bank_file_path ? '<button type="button" class="file-link" id="pbankfile-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">⬇ Descargar cert. bancario</button>' : '')+
         '</div>' : '')+
         '<div class="count">Cotizaciones: <b>'+qCount+'</b></div>'+
         (p.created_by ? '<div class="count">Agregado por <b>'+esc(p.created_by)+'</b></div>' : '')+
@@ -246,9 +246,9 @@
       if(editBtn) editBtn.addEventListener('click', function(){ openProviderDialog(p.id); });
       if(delBtn) delBtn.addEventListener('click', function(){ deleteProvider(p.id); });
       var rutFileBtn = document.getElementById('prutfile-'+p.id);
-      if(rutFileBtn) rutFileBtn.addEventListener('click', function(){ openStoredFile(p.rut_file_path); });
+      if(rutFileBtn) rutFileBtn.addEventListener('click', function(){ downloadStoredFile(p.rut_file_path, p.rut_file_name); });
       var bankFileBtn = document.getElementById('pbankfile-'+p.id);
-      if(bankFileBtn) bankFileBtn.addEventListener('click', function(){ openStoredFile(p.bank_file_path); });
+      if(bankFileBtn) bankFileBtn.addEventListener('click', function(){ downloadStoredFile(p.bank_file_path, p.bank_file_name); });
     });
   }
 
@@ -357,19 +357,26 @@
     });
   }
 
-  function openStoredFile(path){
+  function downloadStoredFile(path, filename){
     if(!path) return;
-    sb.storage.from(BUCKET).createSignedUrl(path, 3600).then(function(res){
-      if(res.error || !res.data){ alert('No se pudo abrir el archivo.'); return; }
-      window.open(res.data.signedUrl, '_blank', 'noopener');
+    sb.storage.from(BUCKET).createSignedUrl(path, 3600, { download: filename || true }).then(function(res){
+      if(res.error || !res.data){ alert('No se pudo descargar el archivo.'); return; }
+      var a = document.createElement('a');
+      a.href = res.data.signedUrl;
+      if(filename) a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     });
   }
-  function openQuoteFile(q){ openStoredFile(q.file_path); }
+  function openQuoteFile(q){ downloadStoredFile(q.file_path, q.file_name); }
 
   /* ---------------- dialogs ---------------- */
 
   var currentProviderRutFilePath = null;
+  var currentProviderRutFileName = null;
   var currentProviderBankFilePath = null;
+  var currentProviderBankFileName = null;
 
   function openProviderDialog(id){
     var dlg = document.getElementById('dlg-provider');
@@ -390,11 +397,13 @@
     document.getElementById('pv-notes').value = p ? (p.notes||'') : '';
 
     currentProviderRutFilePath = p ? (p.rut_file_path||null) : null;
+    currentProviderRutFileName = p ? (p.rut_file_name||null) : null;
     document.getElementById('pv-rut-file').value = '';
     document.getElementById('pv-rut-file-current').textContent = p && p.rut_file_name ? ('Archivo actual: '+p.rut_file_name) : '';
     document.getElementById('btn-view-pv-rut-file').hidden = !currentProviderRutFilePath;
 
     currentProviderBankFilePath = p ? (p.bank_file_path||null) : null;
+    currentProviderBankFileName = p ? (p.bank_file_name||null) : null;
     document.getElementById('pv-bank-file').value = '';
     document.getElementById('pv-bank-file-current').textContent = p && p.bank_file_name ? ('Archivo actual: '+p.bank_file_name) : '';
     document.getElementById('btn-view-pv-bank-file').hidden = !currentProviderBankFilePath;
@@ -404,7 +413,9 @@
 
   var currentAnnotationsQuoteId = null;
   var currentDepositReceiptPath = null;
+  var currentDepositReceiptName = null;
   var currentBalanceReceiptPath = null;
+  var currentBalanceReceiptName = null;
 
   function renderAnnotationsList(q){
     var wrap = document.getElementById('qt-annotations-list');
@@ -443,11 +454,13 @@
     document.getElementById('qt-notes').value = q ? (q.notes||'') : '';
 
     currentDepositReceiptPath = q ? (q.deposit_receipt_path||null) : null;
+    currentDepositReceiptName = q ? (q.deposit_receipt_name||null) : null;
     document.getElementById('qt-deposit-receipt').value = '';
     document.getElementById('qt-deposit-receipt-current').textContent = q && q.deposit_receipt_name ? ('Archivo actual: '+q.deposit_receipt_name) : '';
     document.getElementById('btn-view-deposit-receipt').hidden = !currentDepositReceiptPath;
 
     currentBalanceReceiptPath = q ? (q.balance_receipt_path||null) : null;
+    currentBalanceReceiptName = q ? (q.balance_receipt_name||null) : null;
     document.getElementById('qt-balance-receipt').value = '';
     document.getElementById('qt-balance-receipt-current').textContent = q && q.balance_receipt_name ? ('Archivo actual: '+q.balance_receipt_name) : '';
     document.getElementById('btn-view-balance-receipt').hidden = !currentBalanceReceiptPath;
@@ -499,11 +512,11 @@
     }
   });
 
-  document.getElementById('btn-view-pv-rut-file').addEventListener('click', function(){ openStoredFile(currentProviderRutFilePath); });
-  document.getElementById('btn-view-pv-bank-file').addEventListener('click', function(){ openStoredFile(currentProviderBankFilePath); });
+  document.getElementById('btn-view-pv-rut-file').addEventListener('click', function(){ downloadStoredFile(currentProviderRutFilePath, currentProviderRutFileName); });
+  document.getElementById('btn-view-pv-bank-file').addEventListener('click', function(){ downloadStoredFile(currentProviderBankFilePath, currentProviderBankFileName); });
 
-  document.getElementById('btn-view-deposit-receipt').addEventListener('click', function(){ openStoredFile(currentDepositReceiptPath); });
-  document.getElementById('btn-view-balance-receipt').addEventListener('click', function(){ openStoredFile(currentBalanceReceiptPath); });
+  document.getElementById('btn-view-deposit-receipt').addEventListener('click', function(){ downloadStoredFile(currentDepositReceiptPath, currentDepositReceiptName); });
+  document.getElementById('btn-view-balance-receipt').addEventListener('click', function(){ downloadStoredFile(currentBalanceReceiptPath, currentBalanceReceiptName); });
 
   document.getElementById('btn-add-annotation').addEventListener('click', function(){
     var id = currentAnnotationsQuoteId;
