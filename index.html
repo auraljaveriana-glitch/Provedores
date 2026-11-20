@@ -366,9 +366,14 @@
         <datalist id="pj-assignee-list">
           <option value="Fredy Gómez">
           <option value="Estefanya Peña">
+          <option value="Felipe Berthelsen">
         </datalist>
       </div>
-      <div class="field"><label>Fecha de entrega</label><input type="date" id="pj-due"></div>
+      <div class="field">
+        <label>Fecha de entrega</label>
+        <input type="date" id="pj-due">
+        <span class="hint">Ten en cuenta que la entrega de cada pieza puede tardar hasta 2 días hábiles.</span>
+      </div>
     </div>
     <div class="row2">
       <div class="field"><label>Estado</label>
@@ -384,6 +389,22 @@
       </div>
     </div>
     <div class="field"><label>Enlace (Canva, Drive, Frame.io, etc.)</label><input type="url" id="pj-link" placeholder="https://…"></div>
+    <div class="field">
+      <label>Archivo de referencia / muestra (opcional)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="file" id="pj-reference-file" accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*" style="flex:1;min-width:0;">
+        <button type="button" class="btn-ghost" id="btn-view-pj-reference-file" hidden>Descargar</button>
+      </div>
+      <span class="file-current" id="pj-reference-file-current"></span>
+    </div>
+    <div class="field">
+      <label>Arte final (súbelo aquí cuando la pieza esté lista)</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="file" id="pj-final-file" style="flex:1;min-width:0;">
+        <button type="button" class="btn-ghost" id="btn-view-pj-final-file" hidden>Descargar</button>
+      </div>
+      <span class="file-current" id="pj-final-file-current"></span>
+    </div>
     <div class="field"><label>Notas</label><textarea id="pj-notes"></textarea></div>
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" data-close="dlg-project">Cancelar</button>

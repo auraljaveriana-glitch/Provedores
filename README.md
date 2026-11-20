@@ -9,7 +9,7 @@ Es un sitio estático (HTML + CSS + JS, sin instalación ni build) que usa **Sup
 ## 1. Crear el backend en Supabase (una sola vez)
 
 1. Entra a tu proyecto en [supabase.com](https://supabase.com) (o crea uno nuevo).
-2. Ve a **SQL Editor** → **New query**, pega **todo** el contenido de [`schema.sql`](schema.sql) y dale **Run**. El archivo es seguro de ejecutar completo, de una sola vez, aunque ya hubieras corrido una versión anterior — cada bloque solo crea lo que falte. Esto crea las tablas de proveedores/cotizaciones y las nuevas de Marketing (`creative_projects`, `content_plan`, `calendar_events`, `image_bank`), la seguridad (solo usuarios con sesión iniciada pueden leer/escribir) y los buckets de almacenamiento `cotizaciones-files` y `banco-imagenes`.
+2. Ve a **SQL Editor** → **New query**, pega **todo** el contenido de [`schema.sql`](schema.sql) y dale **Run**. El archivo es seguro de ejecutar completo, de una sola vez, aunque ya hubieras corrido una versión anterior — cada bloque solo crea lo que falte. Esto crea las tablas de proveedores/cotizaciones y las nuevas de Marketing (`creative_projects`, `content_plan`, `calendar_events`, `image_bank`), la seguridad por rol y los buckets de almacenamiento `cotizaciones-files`, `banco-imagenes` y `proyectos-archivos`.
 3. Ve a **Project Settings → API Keys** y copia:
    - **Project URL**
    - **Publishable key** (`sb_publishable_...`) — nunca la **Secret key** (`sb_secret_...`), esa nunca va en el sitio.
@@ -96,6 +96,10 @@ Todos los archivos van sueltos en la raíz del repositorio (sin subcarpetas) —
 ### Proyectos de diseño / Proyectos de video
 Tablero Kanban con columnas **Por hacer → En proceso → Revisión → Terminado**. Cada tarjeta tiene nombre, descripción, responsable, fecha de entrega, prioridad y un enlace (a Canva, Drive, etc.). Se puede arrastrar las tarjetas entre columnas para cambiar su estado, o editarlas con el botón "Editar". Las fechas de entrega vencidas se resaltan en rojo y aparecen también en el Calendario.
 
+Cada tarjeta también tiene dos campos de archivo, dentro del mismo formulario de "Editar proyecto":
+- **Archivo de referencia / muestra**: si la solicitud vino del formulario público y la persona adjuntó una imagen o PDF de muestra, aparece aquí automáticamente (con su botón "Descargar"). Quien edita la tarjeta desde el panel también puede subir uno manualmente si hace falta.
+- **Arte final**: en cuanto el diseñador o el editor de video terminan la pieza, abren la tarjeta y suben aquí el archivo final (imagen, PDF, video, zip, lo que sea) — queda guardado junto al proyecto y cualquiera con acceso a esa tarjeta puede descargarlo con el botón "⬇ Descargar arte final" que aparece también en la vista del tablero.
+
 Solo **Administrativo** puede crear tarjetas nuevas o borrarlas (además de las que llegan solas por el formulario público de solicitudes). Quien tiene rol **Diseño** o **Video** solo ve, en su tablero correspondiente, las tarjetas donde "Responsable" sea exactamente su nombre — puede moverlas y editarlas, pero no ve el trabajo de sus compañeros ni puede crear tarjetas nuevas.
 
 ### Plan de contenidos
@@ -124,9 +128,9 @@ El botón "Inventario" del menú lateral abre en una pestaña nueva tu app de in
 ### Solicitar pieza — enlace público para toda la empresa
 [`solicitar.html`](solicitar.html) es una página aparte, **sin inicio de sesión**, para que cualquier persona de Aural pida una pieza de diseño o un video. El enlace es la dirección del sitio + `/solicitar.html` (ej. `https://tu-sitio.netlify.app/solicitar.html`) — lo puedes copiar con el botón "🔗 Copiar enlace para solicitudes" que está arriba del tablero de Proyectos de diseño o de video, y compartirlo por donde quieras (correo, WhatsApp, intranet).
 
-Quien llena el formulario pone su nombre, sede/área, qué necesita, una descripción y —si quiere— la fecha en que la necesita. Al enviarlo:
-- Siempre se le avisa que el **mínimo de entrega es 2 días hábiles**; si no pide una fecha puntual, se le muestra esa fecha estimada (hoy + 2 días hábiles, sin contar sábados y domingos).
-- La solicitud cae automáticamente como una tarjeta nueva en la columna "Por hacer" del tablero de **Proyectos de diseño** o de **Proyectos de video**, según lo que haya marcado, con una etiqueta "📩 Solicitud" y sin responsable asignado.
+Quien llena el formulario pone su nombre, sede/área, qué necesita, una descripción, —si quiere— un archivo de muestra o referencia (imagen o PDF) y —si quiere— la fecha en que la necesita. Al enviarlo:
+- Siempre se le avisa que la **entrega puede tardar hasta 2 días hábiles**; si no pide una fecha puntual, se le muestra esa fecha estimada (hoy + 2 días hábiles, sin contar sábados y domingos).
+- La solicitud cae automáticamente como una tarjeta nueva en la columna "Por hacer" del tablero de **Proyectos de diseño** o de **Proyectos de video**, según lo que haya marcado, con una etiqueta "📩 Solicitud" y sin responsable asignado. Si adjuntó un archivo de muestra, queda guardado en la tarjeta como "Archivo de referencia".
 - Como las solicitudes llegan sin responsable, solo **Administrativo** las ve apenas entran (el rol Diseño/Video de cada persona solo le muestra lo que ya tiene su nombre puesto). Administrativo abre la tarjeta y escribe el nombre del diseñador o editor en "Responsable" — el campo ya sugiere **Fredy Gómez** y **Estefanya Peña** — y recién ahí esa persona la ve en su propio tablero.
 - Quien llena el formulario **no** puede ver, editar ni borrar ninguna tarjeta — solo puede crear la suya. Eso está garantizado desde la base de datos (política de seguridad en Supabase), no solo escondiendo botones en la pantalla.
 
@@ -137,6 +141,6 @@ Cada registro queda marcado con el correo de quién lo creó y quién lo editó 
 Esta versión agrega todo el panel de Marketing (proyectos, contenidos, calendario, banco de imágenes, formulario público de solicitudes) sin tocar lo que ya tenías en Proveedores & cotizaciones. Para que funcione con los datos que ya tienes en Supabase:
 
 1. Entra a Supabase → **SQL Editor** → **New query**.
-2. Pega **todo** el contenido de [`schema.sql`](schema.sql) (el archivo completo, no solo un bloque) y dale **Run**. Está hecho para poder correrse entero las veces que sea necesario: no borra ni cambia nada de lo que ya tenías, solo crea las tablas, columnas, el bucket y las políticas nuevas si no existen.
+2. Pega **todo** el contenido de [`schema.sql`](schema.sql) (el archivo completo, no solo un bloque) y dale **Run**. Está hecho para poder correrse entero las veces que sea necesario: no borra ni cambia nada de lo que ya tenías, solo crea las tablas, columnas, los buckets (incluido el más reciente, `proyectos-archivos`, para los archivos de referencia y de arte final) y las políticas nuevas si no existen.
 3. Reemplaza en tu repositorio de GitHub (o arrástralos de nuevo si lo subiste así) los archivos `index.html`, `app.js`, `styles.css`, `README.md` y `schema.sql` por los nuevos, y agrega los dos archivos nuevos `solicitar.html` y `solicitar.js`. `supabase-config.js` y `aural-logo.png` no cambiaron.
 4. **No te saltes este paso:** esta versión agrega roles y permisos (ver "Asignar el rol de cada cuenta" arriba). Hasta que le pongas un rol a cada cuenta que ya existía — incluida la tuya — nadie va a poder usar el panel, solo verán el aviso de que falta asignarles un rol.

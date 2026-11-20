@@ -408,9 +408,9 @@
     });
   }
 
-  function downloadStoredFile(path, filename){
+  function downloadStoredFile(path, filename, bucket){
     if(!path) return;
-    sb.storage.from(BUCKET).createSignedUrl(path, 3600, { download: filename || true }).then(function(res){
+    sb.storage.from(bucket || BUCKET).createSignedUrl(path, 3600, { download: filename || true }).then(function(res){
       if(res.error || !res.data){ alert('No se pudo descargar el archivo.'); return; }
       var a = document.createElement('a');
       a.href = res.data.signedUrl;
@@ -948,6 +948,7 @@
      ================================================================ */
 
   var BUCKET2 = "banco-imagenes";
+  var BUCKET3 = "proyectos-archivos";
   var creativeProjects = [];
   var contentItems = [];
   var calendarEvents = [];
@@ -1020,6 +1021,10 @@
         (p.due_date ? '<span class="'+(overdue?'kdue-overdue':'')+'">📅 '+fmtDate(p.due_date)+'</span>' : '')+
       '</div>'+
       (p.link_url ? '<a class="kcard-link" href="'+esc(p.link_url)+'" target="_blank" rel="noopener">🔗 Ver enlace</a>' : '')+
+      (p.reference_file_path || p.final_file_path ? '<div style="margin-top:6px;display:flex;gap:12px;flex-wrap:wrap;">'+
+        (p.reference_file_path ? '<button type="button" class="file-link" id="pjref-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">📎 Ver muestra</button>' : '')+
+        (p.final_file_path ? '<button type="button" class="file-link" id="pjfinal-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">⬇ Descargar arte final</button>' : '')+
+      '</div>' : '')+
       (canWrite ? '<div class="actions"><button class="btn-text" id="pedit-'+p.id+'" type="button">Editar</button>'+(isAdmin?'<button class="btn-text danger" id="pdel-'+p.id+'" type="button">Eliminar</button>':'')+'</div>' : '')+
     '</div>';
   }
@@ -1051,6 +1056,10 @@
       if(editBtn) editBtn.addEventListener('click', function(){ openProjectDialog(kind, p.id); });
       var delBtn = document.getElementById('pdel-'+p.id);
       if(delBtn) delBtn.addEventListener('click', function(){ deleteProject(p.id); });
+      var refBtn = document.getElementById('pjref-'+p.id);
+      if(refBtn) refBtn.addEventListener('click', function(){ downloadStoredFile(p.reference_file_path, p.reference_file_name, BUCKET3); });
+      var finalBtn = document.getElementById('pjfinal-'+p.id);
+      if(finalBtn) finalBtn.addEventListener('click', function(){ downloadStoredFile(p.final_file_path, p.final_file_name, BUCKET3); });
     });
 
     board.querySelectorAll('.kcol-body').forEach(function(col){
@@ -1073,6 +1082,14 @@
     });
   }
 
+  var currentProjectReferenceFilePath = null;
+  var currentProjectReferenceFileName = null;
+  var currentProjectFinalFilePath = null;
+  var currentProjectFinalFileName = null;
+
+  document.getElementById('btn-view-pj-reference-file').addEventListener('click', function(){ downloadStoredFile(currentProjectReferenceFilePath, currentProjectReferenceFileName, BUCKET3); });
+  document.getElementById('btn-view-pj-final-file').addEventListener('click', function(){ downloadStoredFile(currentProjectFinalFilePath, currentProjectFinalFileName, BUCKET3); });
+
   function openProjectDialog(kind, id){
     var dlg = document.getElementById('dlg-project');
     var p = id ? creativeProjects.find(function(x){ return x.id===id; }) : null;
@@ -1093,6 +1110,16 @@
     document.getElementById('pj-status').value = p ? (p.status||'todo') : 'todo';
     document.getElementById('pj-priority').value = p ? (p.priority||'') : '';
     document.getElementById('pj-link').value = p ? (p.link_url||'') : '';
+    currentProjectReferenceFilePath = p ? (p.reference_file_path||null) : null;
+    currentProjectReferenceFileName = p ? (p.reference_file_name||null) : null;
+    document.getElementById('pj-reference-file').value = '';
+    document.getElementById('pj-reference-file-current').textContent = currentProjectReferenceFileName ? ('Archivo actual: '+currentProjectReferenceFileName) : '';
+    document.getElementById('btn-view-pj-reference-file').hidden = !currentProjectReferenceFilePath;
+    currentProjectFinalFilePath = p ? (p.final_file_path||null) : null;
+    currentProjectFinalFileName = p ? (p.final_file_name||null) : null;
+    document.getElementById('pj-final-file').value = '';
+    document.getElementById('pj-final-file-current').textContent = currentProjectFinalFileName ? ('Archivo actual: '+currentProjectFinalFileName) : '';
+    document.getElementById('btn-view-pj-final-file').hidden = !currentProjectFinalFilePath;
     document.getElementById('pj-notes').value = p ? (p.notes||'') : '';
     dlg.showModal();
   }
@@ -1122,6 +1149,7 @@
     ev.preventDefault();
     var id = document.getElementById('pj-id').value;
     var kind = document.getElementById('pj-kind').value;
+    var existing = id ? creativeProjects.find(function(x){ return x.id===id; }) : null;
     var data = {
       kind: kind,
       name: document.getElementById('pj-name').value.trim(),
@@ -1137,19 +1165,59 @@
     if(!data.name) return;
     var submitBtn = document.getElementById('dlg-project').querySelector('button[type=submit]');
     submitBtn.disabled = true;
-    var task = id ? sb.from('creative_projects').update(data).eq('id', id) : sb.from('creative_projects').insert(data);
-    task.then(function(res){
+
+    function saveRow(){
+      return id ? sb.from('creative_projects').update(data).eq('id', id) : sb.from('creative_projects').insert(data);
+    }
+
+    var fileJobs = [
+      { input: document.getElementById('pj-reference-file'), pathField:'reference_file_path', nameField:'reference_file_name', typeField:'reference_file_type', oldPath: existing && existing.reference_file_path, prefix:'ref-' },
+      { input: document.getElementById('pj-final-file'), pathField:'final_file_path', nameField:'final_file_name', typeField:'final_file_type', oldPath: existing && existing.final_file_path, prefix:'final-' }
+    ];
+    var oldPathsToRemove = [];
+
+    var chain = Promise.resolve();
+    fileJobs.forEach(function(job){
+      var file = job.input.files && job.input.files[0];
+      if(!file) return;
+      chain = chain.then(function(){
+        var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        var path = job.prefix + (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())) + '-' + safeName;
+        return sb.storage.from(BUCKET3).upload(path, file).then(function(res){
+          if(res.error) throw res.error;
+          data[job.pathField] = path;
+          data[job.nameField] = file.name;
+          data[job.typeField] = file.type;
+          if(job.oldPath) oldPathsToRemove.push(job.oldPath);
+        });
+      });
+    });
+
+    chain.then(function(){
+      return saveRow();
+    }).then(function(res){
+      if(res && res.error) throw res.error;
       submitBtn.disabled = false;
-      if(res.error){ alert('No se pudo guardar: '+res.error.message); return; }
+      if(oldPathsToRemove.length) sb.storage.from(BUCKET3).remove(oldPathsToRemove);
       document.getElementById('dlg-project').close();
       fetchCreativeProjects();
+    }).catch(function(e){
+      submitBtn.disabled = false;
+      alert('No se pudo guardar: '+(e && e.message ? e.message : e));
     });
   });
 
   function deleteProject(id){
     if(!confirm('¿Eliminar este proyecto?')) return;
+    var p = creativeProjects.find(function(x){ return x.id===id; });
     sb.from('creative_projects').delete().eq('id', id).then(function(res){
       if(res.error){ alert('No se pudo eliminar: '+res.error.message); return; }
+      var toRemove = [];
+      if(p){
+        if(p.reference_file_path) toRemove.push(p.reference_file_path);
+        if(p.final_file_path) toRemove.push(p.final_file_path);
+      }
+      if(toRemove.length) sb.storage.from(BUCKET3).remove(toRemove);
       fetchCreativeProjects();
     });
   }

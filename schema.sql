@@ -415,3 +415,36 @@ drop policy if exists "image_bank_all_authenticated" on public.image_bank;
 drop policy if exists "image_bank_role_access" on public.image_bank;
 create policy "image_bank_role_access" on public.image_bank
   for all to authenticated using (public.app_role() is not null) with check (public.app_role() is not null);
+
+-- ---------- FASE 5: archivo de referencia (en la solicitud pública) y
+-- arte final (subido por diseño/video cuando la pieza está lista) ----------
+alter table public.creative_projects add column if not exists reference_file_path text;
+alter table public.creative_projects add column if not exists reference_file_name text;
+alter table public.creative_projects add column if not exists reference_file_type text;
+alter table public.creative_projects add column if not exists final_file_path text;
+alter table public.creative_projects add column if not exists final_file_name text;
+alter table public.creative_projects add column if not exists final_file_type text;
+
+insert into storage.buckets (id, name, public)
+values ('proyectos-archivos', 'proyectos-archivos', false)
+on conflict (id) do nothing;
+
+-- Cualquier persona (incluso sin cuenta) puede subir el archivo de muestra
+-- desde el formulario público de solicitud.
+drop policy if exists "proyectos_archivos_insert_anon" on storage.objects;
+create policy "proyectos_archivos_insert_anon" on storage.objects
+  for insert to anon with check (bucket_id = 'proyectos-archivos');
+
+-- Las cuentas con sesión (admin, diseño, video) pueden subir el arte final
+-- y descargar cualquier archivo del proyecto.
+drop policy if exists "proyectos_archivos_insert_auth" on storage.objects;
+create policy "proyectos_archivos_insert_auth" on storage.objects
+  for insert to authenticated with check (bucket_id = 'proyectos-archivos');
+
+drop policy if exists "proyectos_archivos_select_auth" on storage.objects;
+create policy "proyectos_archivos_select_auth" on storage.objects
+  for select to authenticated using (bucket_id = 'proyectos-archivos');
+
+drop policy if exists "proyectos_archivos_delete_auth" on storage.objects;
+create policy "proyectos_archivos_delete_auth" on storage.objects
+  for delete to authenticated using (bucket_id = 'proyectos-archivos');

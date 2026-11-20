@@ -35,6 +35,7 @@
   }
 
   var minDate = toISO(addBusinessDays(new Date(), 2));
+  var REQUEST_FILES_BUCKET = "proyectos-archivos";
 
   document.querySelectorAll('input[name="rq-kind"]').forEach(function(radio){
     function sync(){
@@ -80,7 +81,24 @@
     btn.disabled = true;
     btn.textContent = 'Enviando…';
 
-    sb.from('creative_projects').insert(data).then(function(res){
+    var file = document.getElementById('rq-file').files && document.getElementById('rq-file').files[0];
+    var chain = Promise.resolve();
+    if(file){
+      chain = chain.then(function(){
+        var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        var path = 'ref-' + (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())) + '-' + safeName;
+        return sb.storage.from(REQUEST_FILES_BUCKET).upload(path, file).then(function(res){
+          if(res.error) throw res.error;
+          data.reference_file_path = path;
+          data.reference_file_name = file.name;
+          data.reference_file_type = file.type;
+        });
+      });
+    }
+
+    chain.then(function(){
+      return sb.from('creative_projects').insert(data);
+    }).then(function(res){
       btn.disabled = false;
       btn.textContent = 'Enviar solicitud';
       if(res.error){
@@ -95,7 +113,7 @@
     }).catch(function(e){
       btn.disabled = false;
       btn.textContent = 'Enviar solicitud';
-      errEl.textContent = 'No se pudo conectar: ' + (e && e.message ? e.message : e);
+      errEl.textContent = 'No se pudo enviar la solicitud: ' + (e && e.message ? e.message : e);
       errEl.hidden = false;
     });
   });
