@@ -930,6 +930,12 @@
       var el = document.getElementById(id);
       if(el) el.hidden = !(canWrite && isAdmin);
     });
+    // Compartir el enlace del formulario de solicitudes es una tarea de
+    // coordinación — se deja solo para Administrativo.
+    ['btn-share-request-link','btn-share-request-link-2'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.hidden = !(canWrite && isAdmin);
+    });
     ['btn-new-content','btn-new-event','btn-new-image'].forEach(function(id){
       var el = document.getElementById(id);
       if(el) el.disabled = !canWrite;
