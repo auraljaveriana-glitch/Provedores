@@ -53,7 +53,10 @@
       <section id="sec-diseno" class="mainsec active">
         <div class="sec-head">
           <h1>Proyectos de diseño</h1>
-          <button class="btn-primary" id="btn-new-project-diseno" type="button">+ Nuevo proyecto</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-ghost" id="btn-share-request-link" type="button">🔗 Copiar enlace para solicitudes</button>
+            <button class="btn-primary" id="btn-new-project-diseno" type="button">+ Nuevo proyecto</button>
+          </div>
         </div>
         <div class="kanban-board" id="board-diseno"></div>
       </section>
@@ -61,7 +64,10 @@
       <section id="sec-video" class="mainsec">
         <div class="sec-head">
           <h1>Proyectos de video</h1>
-          <button class="btn-primary" id="btn-new-project-video" type="button">+ Nuevo proyecto</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn-ghost" id="btn-share-request-link-2" type="button">🔗 Copiar enlace para solicitudes</button>
+            <button class="btn-primary" id="btn-new-project-video" type="button">+ Nuevo proyecto</button>
+          </div>
         </div>
         <div class="kanban-board" id="board-video"></div>
       </section>
@@ -341,10 +347,17 @@
   <form class="dlg-body" id="form-project">
     <input type="hidden" id="pj-id">
     <input type="hidden" id="pj-kind">
+    <p class="hint" id="pj-request-hint" hidden style="background:var(--accent-soft);color:var(--accent-strong);border-radius:var(--radius-sm);padding:8px 10px;"></p>
     <div class="field"><label>Nombre del proyecto *</label><input type="text" id="pj-name" required></div>
     <div class="field"><label>Descripción</label><textarea id="pj-description"></textarea></div>
     <div class="row2">
-      <div class="field"><label>Responsable</label><input type="text" id="pj-assignee"></div>
+      <div class="field"><label>Responsable</label>
+        <input type="text" id="pj-assignee" list="pj-assignee-list" placeholder="¿Quién la va a hacer?">
+        <datalist id="pj-assignee-list">
+          <option value="Fredy Gómez">
+          <option value="Estefanya Peña">
+        </datalist>
+      </div>
       <div class="field"><label>Fecha de entrega</label><input type="date" id="pj-due"></div>
     </div>
     <div class="row2">

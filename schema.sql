@@ -285,3 +285,21 @@ begin
     alter publication supabase_realtime add table public.image_bank;
   end if;
 end $$;
+
+-- ======================================================================
+-- FASE 3: FORMULARIO PÚBLICO DE SOLICITUD DE PIEZAS (solicitar.html)
+-- Pega este bloque en Supabase > SQL Editor > New query > Run.
+-- Permite que cualquier persona de la empresa, SIN iniciar sesión, pueda
+-- crear una solicitud (cae como tarjeta nueva en "Por hacer" del tablero
+-- de diseño o de video). Solo se le da permiso de CREAR — nunca de leer,
+-- editar ni borrar — así que no puede ver ni tocar las demás tarjetas.
+-- ======================================================================
+
+alter table public.creative_projects add column if not exists requested_by text;
+alter table public.creative_projects add column if not exists requested_area text;
+alter table public.creative_projects add column if not exists source text;
+
+drop policy if exists "creative_projects_public_insert" on public.creative_projects;
+create policy "creative_projects_public_insert" on public.creative_projects
+  for insert to anon
+  with check (kind in ('diseno','video') and status = 'todo');

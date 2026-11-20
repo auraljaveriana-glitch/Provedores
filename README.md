@@ -89,12 +89,21 @@ Es el módulo original, sin cambios en su funcionamiento:
 ### Inventario
 El botón "Inventario" del menú lateral abre en una pestaña nueva tu app de inventario (`inventarioauralcol.netlify.app`), que ya tiene su propio manejo de existencias y de pendones en préstamo — no se rehízo aquí para no duplicar esa información en dos bases de datos distintas. Si prefieres que el inventario viva dentro de esta misma página, dímelo y lo integramos.
 
-Cada registro queda marcado con el correo de quién lo creó y quién lo editó por última vez.
+### Solicitar pieza — enlace público para toda la empresa
+[`solicitar.html`](solicitar.html) es una página aparte, **sin inicio de sesión**, para que cualquier persona de Aural pida una pieza de diseño o un video. El enlace es la dirección del sitio + `/solicitar.html` (ej. `https://tu-sitio.netlify.app/solicitar.html`) — lo puedes copiar con el botón "🔗 Copiar enlace para solicitudes" que está arriba del tablero de Proyectos de diseño o de video, y compartirlo por donde quieras (correo, WhatsApp, intranet).
+
+Quien llena el formulario pone su nombre, sede/área, qué necesita, una descripción y —si quiere— la fecha en que la necesita. Al enviarlo:
+- Siempre se le avisa que el **mínimo de entrega es 2 días hábiles**; si no pide una fecha puntual, se le muestra esa fecha estimada (hoy + 2 días hábiles, sin contar sábados y domingos).
+- La solicitud cae automáticamente como una tarjeta nueva en la columna "Por hacer" del tablero de **Proyectos de diseño** o de **Proyectos de video**, según lo que haya marcado, con una etiqueta "📩 Solicitud" y sin responsable asignado.
+- Quien tenga acceso al panel (por ahora pensado para asignar entre **Fredy Gómez** y **Estefanya Peña**) la ve ahí mismo y solo tiene que abrirla y escribir el nombre del responsable en el campo "Responsable" — el campo ya sugiere esos dos nombres.
+- Quien llena el formulario **no** puede ver, editar ni borrar ninguna tarjeta — solo puede crear la suya. Eso está garantizado desde la base de datos (política de seguridad en Supabase), no solo escondiendo botones en la pantalla.
+
+Cada registro queda marcado con el correo de quién lo creó y quién lo editó por última vez (las solicitudes públicas, al no tener usuario, quedan marcadas con el nombre que la persona escribió en el formulario).
 
 ## Si ya tenías el sitio funcionando (actualización a "Aural Marketing")
 
-Esta versión agrega todo el panel de Marketing (proyectos, contenidos, calendario, banco de imágenes) sin tocar lo que ya tenías en Proveedores & cotizaciones. Para que funcione con los datos que ya tienes en Supabase:
+Esta versión agrega todo el panel de Marketing (proyectos, contenidos, calendario, banco de imágenes, formulario público de solicitudes) sin tocar lo que ya tenías en Proveedores & cotizaciones. Para que funcione con los datos que ya tienes en Supabase:
 
 1. Entra a Supabase → **SQL Editor** → **New query**.
-2. Pega **todo** el contenido de [`schema.sql`](schema.sql) (el archivo completo, no solo un bloque) y dale **Run**. Está hecho para poder correrse entero las veces que sea necesario: no borra ni cambia nada de lo que ya tenías, solo crea las tablas y el bucket nuevos si no existen.
-3. Reemplaza en tu repositorio de GitHub (o arrástralos de nuevo si lo subiste así) los archivos `index.html`, `app.js`, `styles.css`, `README.md` y `schema.sql` por los nuevos. `supabase-config.js` y `aural-logo.png` no cambiaron.
+2. Pega **todo** el contenido de [`schema.sql`](schema.sql) (el archivo completo, no solo un bloque) y dale **Run**. Está hecho para poder correrse entero las veces que sea necesario: no borra ni cambia nada de lo que ya tenías, solo crea las tablas, columnas, el bucket y las políticas nuevas si no existen.
+3. Reemplaza en tu repositorio de GitHub (o arrástralos de nuevo si lo subiste así) los archivos `index.html`, `app.js`, `styles.css`, `README.md` y `schema.sql` por los nuevos, y agrega los dos archivos nuevos `solicitar.html` y `solicitar.js`. `supabase-config.js` y `aural-logo.png` no cambiaron.

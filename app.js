@@ -920,11 +920,13 @@
     var overdue = p.due_date && p.due_date < todayISO() && p.status!=='terminado';
     var prioLabel = {alta:'Alta',media:'Media',baja:'Baja'}[p.priority];
     return '<div class="kcard" id="pcardel-'+p.id+'" draggable="'+(canWrite?'true':'false')+'">'+
+      (p.source==='solicitud' ? '<span class="krequest-badge">📩 Solicitud</span>' : '')+
       (p.priority ? '<span class="kprio '+esc(p.priority)+'">'+esc(prioLabel||p.priority)+'</span>' : '')+
       '<div class="kname">'+esc(p.name)+'</div>'+
       (p.description ? '<div class="kdesc">'+esc(p.description)+'</div>' : '')+
+      (p.requested_by ? '<div class="kreq-meta">Pedida por <b>'+esc(p.requested_by)+'</b>'+(p.requested_area?(' · '+esc(p.requested_area)):'')+'</div>' : '')+
       '<div class="kmeta">'+
-        (p.assignee ? '<span>👤 '+esc(p.assignee)+'</span>' : '')+
+        (p.assignee ? '<span>👤 '+esc(p.assignee)+'</span>' : (p.source==='solicitud' ? '<span style="color:var(--warn);font-weight:700;">Sin asignar</span>' : ''))+
         (p.due_date ? '<span class="'+(overdue?'kdue-overdue':'')+'">📅 '+fmtDate(p.due_date)+'</span>' : '')+
       '</div>'+
       (p.link_url ? '<a class="kcard-link" href="'+esc(p.link_url)+'" target="_blank" rel="noopener">🔗 Ver enlace</a>' : '')+
@@ -985,6 +987,13 @@
     var dlg = document.getElementById('dlg-project');
     var p = id ? creativeProjects.find(function(x){ return x.id===id; }) : null;
     document.getElementById('dlg-project-title').textContent = (p?'Editar':'Nuevo')+' proyecto de '+(kind==='video'?'video':'diseño');
+    var reqHint = document.getElementById('pj-request-hint');
+    if(p && p.requested_by){
+      reqHint.hidden = false;
+      reqHint.textContent = '📩 Esta tarjeta viene de una solicitud enviada por '+p.requested_by+(p.requested_area?(' ('+p.requested_area+')'):'')+'. Asigna a Fredy Gómez o Estefanya Peña en "Responsable".';
+    } else {
+      reqHint.hidden = true;
+    }
     document.getElementById('pj-id').value = p ? p.id : '';
     document.getElementById('pj-kind').value = kind;
     document.getElementById('pj-name').value = p ? (p.name||'') : '';
@@ -1000,6 +1009,24 @@
 
   document.getElementById('btn-new-project-diseno').addEventListener('click', function(){ openProjectDialog('diseno', null); });
   document.getElementById('btn-new-project-video').addEventListener('click', function(){ openProjectDialog('video', null); });
+
+  function copyRequestLink(btn){
+    var url = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'solicitar.html';
+    var original = btn.textContent;
+    function done(ok){
+      btn.textContent = ok ? '✓ Enlace copiado' : 'No se pudo copiar — cópialo: '+url;
+      setTimeout(function(){ btn.textContent = original; }, 2200);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(function(){ done(true); }).catch(function(){ done(false); });
+    } else {
+      done(false);
+    }
+  }
+  var shareBtn1 = document.getElementById('btn-share-request-link');
+  var shareBtn2 = document.getElementById('btn-share-request-link-2');
+  if(shareBtn1) shareBtn1.addEventListener('click', function(){ copyRequestLink(shareBtn1); });
+  if(shareBtn2) shareBtn2.addEventListener('click', function(){ copyRequestLink(shareBtn2); });
 
   document.getElementById('form-project').addEventListener('submit', function(ev){
     ev.preventDefault();

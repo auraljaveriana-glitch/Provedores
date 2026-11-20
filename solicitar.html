@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solicitar pieza — Aural</title>
+<link rel="icon" href="aural-logo.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="request-screen">
+  <div class="request-card">
+    <span class="logo-chip"><img class="brand-logo" src="aural-logo.png" alt="Aural"></span>
+    <h2>Solicitar pieza de diseño o video</h2>
+    <p class="hint">Cuéntanos qué necesitas y el equipo de Marketing lo recibe directamente en su tablero.</p>
+
+    <div class="request-note" id="req-note">
+      ⏱️ El tiempo mínimo de entrega es de <b>2 días hábiles</b> desde que envías la solicitud. Si necesitas la pieza para una fecha puntual, indícala abajo y haremos lo posible por cumplirla.
+    </div>
+
+    <form class="request-form" id="request-form">
+      <div class="field">
+        <label>¿Qué necesitas? *</label>
+        <div class="request-type-toggle">
+          <label id="rt-label-diseno"><input type="radio" name="rq-kind" value="diseno" checked> 🎨 Pieza de diseño</label>
+          <label id="rt-label-video"><input type="radio" name="rq-kind" value="video"> 🎬 Video</label>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Tu nombre *</label><input type="text" id="rq-name" required></div>
+        <div class="field"><label>Sede / área *</label><input type="text" id="rq-area" required placeholder="Ej: Sede Chapinero, Contabilidad…"></div>
+      </div>
+      <div class="field"><label>Título de la pieza *</label><input type="text" id="rq-title" required placeholder="Ej: Pendón promoción audífonos noviembre"></div>
+      <div class="field"><label>Describe qué necesitas *</label><textarea id="rq-desc" required placeholder="Tamaño, texto que debe llevar, para qué es, referencias…"></textarea></div>
+      <div class="field">
+        <label>¿Para qué fecha la necesitas? (opcional)</label>
+        <input type="date" id="rq-date">
+        <span class="hint">Si no la necesitas para una fecha exacta, déjalo vacío y te daremos la fecha estimada mínima.</span>
+      </div>
+      <p class="request-error" id="req-error" hidden></p>
+      <div class="dlg-actions" style="margin-top:0;">
+        <button type="submit" class="btn-primary" id="req-submit" style="width:100%;">Enviar solicitud</button>
+      </div>
+    </form>
+
+    <div class="request-success" id="request-success" hidden>
+      <div class="big-check">✓</div>
+      <h3>¡Solicitud enviada!</h3>
+      <p>El equipo de Marketing ya la tiene en su tablero. Fecha estimada de entrega:</p>
+      <div class="eta" id="req-eta-date"></div>
+      <p style="margin-top:8px;">Recuerda que el tiempo mínimo son 2 días hábiles.</p>
+      <button type="button" class="btn-ghost" id="req-another">Enviar otra solicitud</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="supabase-config.js"></script>
+<script src="solicitar.js"></script>
+</body>
+</html>
