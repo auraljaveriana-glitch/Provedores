@@ -2,6 +2,8 @@
 
 Panel interno de Marketing de Aural. Tiene un menú lateral con 6 secciones: **Proyectos de diseño** y **Proyectos de video** (tableros Kanban), **Plan de contenidos**, **Calendario**, **Banco de imágenes** y **Proveedores & cotizaciones** (el módulo original, con todo lo que ya tenía: cotizaciones, pagos a contabilidad, comparación de precios). También hay un enlace directo a **Inventario**, que abre en otra pestaña tu app de inventario ya existente (`inventarioauralcol.netlify.app`), donde ya se gestionan los pendones en préstamo — por eso no se duplicó esa función aquí.
 
+Cada cuenta tiene un **rol** (Administrativo, Diseño, Video o Proveedores) que decide qué ve esa persona en el menú — ver "Asignar el rol de cada cuenta" más abajo.
+
 Es un sitio estático (HTML + CSS + JS, sin instalación ni build) que usa **Supabase** como base de datos, almacenamiento de archivos y sistema de usuarios (correo + contraseña).
 
 ## 1. Crear el backend en Supabase (una sola vez)
@@ -21,6 +23,34 @@ El sitio ya NO tiene opción de "Crear cuenta": solo se puede iniciar sesión. P
 3. Comparte con esa persona su correo y contraseña para que inicie sesión — puede cambiarla después si agregas esa opción, o dásela ya definitiva.
 
 Además, por seguridad, ve a **Authentication → Providers → Email** y desactiva **"Allow new users to sign up"** — así, aunque alguien intente registrarse por su cuenta (por ejemplo llamando directamente a la API), Supabase lo rechaza. El sitio ya no ofrece ese botón, pero esto cierra la puerta también a nivel de Supabase.
+
+### Asignar el rol de cada cuenta (perfiles) — paso obligatorio
+
+⚠️ **Importante:** después de correr `schema.sql`, **nadie va a poder usar la página** (ni siquiera tú) hasta que le asignes un rol a cada cuenta, incluida la tuya. En cuanto alguien inicia sesión sin tener un rol asignado, le aparece un aviso de "Tu cuenta no tiene un rol asignado" en vez del panel — es la señal de que falta este paso.
+
+Hay 4 roles:
+
+| Rol | Ve y puede usar |
+|---|---|
+| **admin** (Administrativo) | Todo: Proyectos de diseño, Proyectos de video, Plan de contenidos, Calendario, Banco de imágenes, Proveedores y el enlace a Inventario. Es el único que puede crear o borrar tarjetas de Proyectos de diseño/video. |
+| **diseno** (Diseño) | Solo las tarjetas de **Proyectos de diseño** que tengan su nombre exacto en "Responsable" (las demás no las ve), más Plan de contenidos, Calendario y Banco de imágenes. No ve Proveedores ni Inventario. |
+| **video** (Video) | Lo mismo que diseño, pero con **Proyectos de video**: solo ve las tarjetas asignadas a su nombre. |
+| **proveedores** (Proveedores) | **Proveedores y cotizaciones** completo (puede crear y editar) + Inventario, más Plan de contenidos, Calendario y Banco de imágenes. No ve Proyectos de diseño ni de video. |
+
+Para asignarle un rol a alguien:
+
+1. Crea su cuenta como siempre (**Authentication → Users → Add user**).
+2. En esa misma pantalla, haz clic sobre el usuario para abrir su detalle y copia su **User UID** (un código largo tipo `xxxxxxxx-xxxx-...`).
+3. Ve a **Table Editor → profiles → Insert row** y llena:
+   - `id`: el User UID que copiaste.
+   - `email`: su correo (solo para que te sea fácil identificarlo ahí, no lo usa el sitio).
+   - `full_name`: **para diseño y video, este nombre debe ser exactamente igual al que escribes en el campo "Responsable" de sus tarjetas** (ej. `Fredy Gómez`, tal cual, con tilde) — así el sistema sabe cuáles tarjetas son suyas. Para admin y proveedores no importa tanto, pero igual ponlo.
+   - `role`: `admin`, `diseno`, `video` o `proveedores`.
+4. Guarda. La próxima vez que esa persona inicie sesión (o recargue la página), ya va a ver solo lo que le corresponde.
+
+No olvides crear tu propia fila con `role = admin` — si no, tú tampoco vas a poder entrar.
+
+Esto no es solo "esconder botones": los permisos están puestos también en la base de datos (en `schema.sql`, FASE 4), así que aunque alguien sea curioso y mire el código del sitio, Supabase le va a negar el acceso a lo que no le corresponde a su rol.
 
 ## 2. Subir el proyecto a GitHub
 
@@ -61,10 +91,12 @@ Todos los archivos van sueltos en la raíz del repositorio (sin subcarpetas) —
 
 ## Uso
 
-- Cada persona inicia sesión con el correo y la contraseña que tú le creaste (ver sección anterior). El menú lateral de la izquierda permite moverse entre las secciones.
+- Cada persona inicia sesión con el correo y la contraseña que tú le creaste (ver sección anterior). El menú lateral solo muestra las secciones que le corresponden según su **rol** (ver "Asignar el rol de cada cuenta" arriba) — cada persona ve un menú distinto según sea Administrativo, Diseño, Video o Proveedores.
 
 ### Proyectos de diseño / Proyectos de video
-Tablero Kanban con columnas **Por hacer → En proceso → Revisión → Terminado**. Cada tarjeta tiene nombre, descripción, responsable, fecha de entrega, prioridad y un enlace (a Canva, Drive, etc.). Puedes arrastrar las tarjetas entre columnas para cambiar su estado, o editarlas con el botón "Editar". Las fechas de entrega vencidas se resaltan en rojo y aparecen también en el Calendario.
+Tablero Kanban con columnas **Por hacer → En proceso → Revisión → Terminado**. Cada tarjeta tiene nombre, descripción, responsable, fecha de entrega, prioridad y un enlace (a Canva, Drive, etc.). Se puede arrastrar las tarjetas entre columnas para cambiar su estado, o editarlas con el botón "Editar". Las fechas de entrega vencidas se resaltan en rojo y aparecen también en el Calendario.
+
+Solo **Administrativo** puede crear tarjetas nuevas o borrarlas (además de las que llegan solas por el formulario público de solicitudes). Quien tiene rol **Diseño** o **Video** solo ve, en su tablero correspondiente, las tarjetas donde "Responsable" sea exactamente su nombre — puede moverlas y editarlas, pero no ve el trabajo de sus compañeros ni puede crear tarjetas nuevas.
 
 ### Plan de contenidos
 Lista de publicaciones con red social, tipo de contenido, fecha y estado de publicación, responsable, el copy/texto y el enlace al diseño o video ya terminado. Se puede filtrar por red social, estado o buscar texto. Las fechas de publicación también aparecen en el Calendario.
@@ -95,7 +127,7 @@ El botón "Inventario" del menú lateral abre en una pestaña nueva tu app de in
 Quien llena el formulario pone su nombre, sede/área, qué necesita, una descripción y —si quiere— la fecha en que la necesita. Al enviarlo:
 - Siempre se le avisa que el **mínimo de entrega es 2 días hábiles**; si no pide una fecha puntual, se le muestra esa fecha estimada (hoy + 2 días hábiles, sin contar sábados y domingos).
 - La solicitud cae automáticamente como una tarjeta nueva en la columna "Por hacer" del tablero de **Proyectos de diseño** o de **Proyectos de video**, según lo que haya marcado, con una etiqueta "📩 Solicitud" y sin responsable asignado.
-- Quien tenga acceso al panel (por ahora pensado para asignar entre **Fredy Gómez** y **Estefanya Peña**) la ve ahí mismo y solo tiene que abrirla y escribir el nombre del responsable en el campo "Responsable" — el campo ya sugiere esos dos nombres.
+- Como las solicitudes llegan sin responsable, solo **Administrativo** las ve apenas entran (el rol Diseño/Video de cada persona solo le muestra lo que ya tiene su nombre puesto). Administrativo abre la tarjeta y escribe el nombre del diseñador o editor en "Responsable" — el campo ya sugiere **Fredy Gómez** y **Estefanya Peña** — y recién ahí esa persona la ve en su propio tablero.
 - Quien llena el formulario **no** puede ver, editar ni borrar ninguna tarjeta — solo puede crear la suya. Eso está garantizado desde la base de datos (política de seguridad en Supabase), no solo escondiendo botones en la pantalla.
 
 Cada registro queda marcado con el correo de quién lo creó y quién lo editó por última vez (las solicitudes públicas, al no tener usuario, quedan marcadas con el nombre que la persona escribió en el formulario).
@@ -107,3 +139,4 @@ Esta versión agrega todo el panel de Marketing (proyectos, contenidos, calendar
 1. Entra a Supabase → **SQL Editor** → **New query**.
 2. Pega **todo** el contenido de [`schema.sql`](schema.sql) (el archivo completo, no solo un bloque) y dale **Run**. Está hecho para poder correrse entero las veces que sea necesario: no borra ni cambia nada de lo que ya tenías, solo crea las tablas, columnas, el bucket y las políticas nuevas si no existen.
 3. Reemplaza en tu repositorio de GitHub (o arrástralos de nuevo si lo subiste así) los archivos `index.html`, `app.js`, `styles.css`, `README.md` y `schema.sql` por los nuevos, y agrega los dos archivos nuevos `solicitar.html` y `solicitar.js`. `supabase-config.js` y `aural-logo.png` no cambiaron.
+4. **No te saltes este paso:** esta versión agrega roles y permisos (ver "Asignar el rol de cada cuenta" arriba). Hasta que le pongas un rol a cada cuenta que ya existía — incluida la tuya — nadie va a poder usar el panel, solo verán el aviso de que falta asignarles un rol.

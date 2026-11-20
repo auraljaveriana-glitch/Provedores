@@ -26,6 +26,15 @@
   </div>
 </div>
 
+<div id="no-profile-screen" hidden>
+  <div class="auth-card">
+    <span class="logo-chip"><img class="brand-logo" src="aural-logo.png" alt="Aural"></span>
+    <h2>Tu cuenta no tiene un rol asignado</h2>
+    <p class="hint">Pídele a un administrador que te asigne un perfil (Administrativo, Diseño, Video o Proveedores) en la tabla <code>profiles</code> de Supabase. En cuanto lo haga, vuelve a entrar.</p>
+    <button type="button" class="btn-ghost" id="no-profile-signout">Cerrar sesión</button>
+  </div>
+</div>
+
 <div id="app" hidden>
   <div class="shell">
     <nav class="sidebar" id="sidebar">
@@ -44,7 +53,7 @@
         <button class="navitem" data-section="calendario" type="button"><span class="navicon">📅</span> Calendario</button>
         <button class="navitem" data-section="imagenes" type="button"><span class="navicon">🖼️</span> Banco de imágenes</button>
         <button class="navitem" data-section="proveedores" type="button"><span class="navicon">🧾</span> Proveedores</button>
-        <a class="navitem navlink" href="https://inventarioauralcol.netlify.app" target="_blank" rel="noopener"><span class="navicon">📦</span> Inventario ↗</a>
+        <a class="navitem navlink" id="nav-inventario-link" href="https://inventarioauralcol.netlify.app" target="_blank" rel="noopener"><span class="navicon">📦</span> Inventario ↗</a>
       </div>
       <div class="sidebar-foot"><p id="whoami" class="whoami" hidden></p></div>
     </nav>

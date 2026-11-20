@@ -270,7 +270,12 @@
     position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(circle at 15% 15%, var(--surface-2) 0%, var(--bg) 55%);padding:20px;
   }
-  #auth-screen[hidden], #app[hidden]{display:none !important;}
+  #auth-screen[hidden], #app[hidden], #no-profile-screen[hidden]{display:none !important;}
+  #no-profile-screen{
+    position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 15% 15%, var(--surface-2) 0%, var(--bg) 55%);padding:20px;
+  }
+  #no-profile-screen .auth-card code{background:var(--surface-2);padding:1px 5px;border-radius:4px;}
   .auth-card{
     background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
     box-shadow:var(--shadow);padding:30px 28px;max-width:360px;width:100%;text-align:center;

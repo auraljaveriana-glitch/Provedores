@@ -303,3 +303,115 @@ drop policy if exists "creative_projects_public_insert" on public.creative_proje
 create policy "creative_projects_public_insert" on public.creative_projects
   for insert to anon
   with check (kind in ('diseno','video') and status = 'todo');
+
+-- ======================================================================
+-- FASE 4: PERFILES Y PERMISOS POR ROL
+-- Pega este bloque en Supabase > SQL Editor > New query > Run.
+-- Crea la tabla "profiles" (ahí se le asigna un rol a cada cuenta) y
+-- ajusta los permisos de las demás tablas según ese rol. Las instrucciones
+-- para asignarle su primer rol a cada cuenta están en el README.
+--
+-- Roles: admin (ve y edita todo), diseno (solo sus proyectos de diseño
+-- asignados a su nombre + contenidos + calendario + imágenes), video
+-- (lo mismo pero con proyectos de video), proveedores (proveedores +
+-- cotizaciones + contenidos + calendario + imágenes).
+-- ======================================================================
+
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  full_name text,
+  role text not null default 'admin' check (role in ('admin','diseno','video','proveedores')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_profiles_updated_at on public.profiles;
+create trigger trg_profiles_updated_at before update on public.profiles
+  for each row execute function public.set_updated_at();
+
+alter table public.profiles enable row level security;
+
+drop policy if exists "profiles_select_own" on public.profiles;
+create policy "profiles_select_own" on public.profiles
+  for select to authenticated using (id = auth.uid());
+
+-- Función de ayuda: el rol de quien está conectado en este momento
+-- (o NULL si su cuenta todavía no tiene fila en "profiles").
+create or replace function public.app_role()
+returns text
+language sql
+stable
+as $$
+  select role from public.profiles where id = auth.uid()
+$$;
+
+-- ---------- Proyectos de diseño / video: cada rol ve solo lo suyo ----------
+drop policy if exists "creative_projects_all_authenticated" on public.creative_projects;
+
+drop policy if exists "creative_projects_select_role" on public.creative_projects;
+create policy "creative_projects_select_role" on public.creative_projects
+  for select to authenticated using (
+    public.app_role() = 'admin'
+    or (public.app_role() = 'diseno' and kind = 'diseno')
+    or (public.app_role() = 'video' and kind = 'video')
+  );
+
+drop policy if exists "creative_projects_insert_role" on public.creative_projects;
+create policy "creative_projects_insert_role" on public.creative_projects
+  for insert to authenticated with check (public.app_role() = 'admin');
+
+drop policy if exists "creative_projects_update_role" on public.creative_projects;
+create policy "creative_projects_update_role" on public.creative_projects
+  for update to authenticated using (
+    public.app_role() = 'admin'
+    or (public.app_role() = 'diseno' and kind = 'diseno')
+    or (public.app_role() = 'video' and kind = 'video')
+  ) with check (
+    public.app_role() = 'admin'
+    or (public.app_role() = 'diseno' and kind = 'diseno')
+    or (public.app_role() = 'video' and kind = 'video')
+  );
+
+drop policy if exists "creative_projects_delete_role" on public.creative_projects;
+create policy "creative_projects_delete_role" on public.creative_projects
+  for delete to authenticated using (public.app_role() = 'admin');
+
+-- (la política "creative_projects_public_insert" de arriba, para el rol
+-- "anon" del formulario público de solicitudes, sigue intacta)
+
+-- ---------- Proveedores y cotizaciones: Administrativo + Proveedores ----------
+drop policy if exists "providers_all_authenticated" on public.providers;
+drop policy if exists "providers_role_access" on public.providers;
+create policy "providers_role_access" on public.providers
+  for all to authenticated using (
+    public.app_role() in ('admin','proveedores')
+  ) with check (
+    public.app_role() in ('admin','proveedores')
+  );
+
+drop policy if exists "quotes_all_authenticated" on public.quotes;
+drop policy if exists "quotes_role_access" on public.quotes;
+create policy "quotes_role_access" on public.quotes
+  for all to authenticated using (
+    public.app_role() in ('admin','proveedores')
+  ) with check (
+    public.app_role() in ('admin','proveedores')
+  );
+
+-- ---------- Plan de contenidos, Calendario y Banco de imágenes: cualquier
+-- cuenta que YA tenga un rol asignado (cualquiera de los 4), no solo admin.
+drop policy if exists "content_plan_all_authenticated" on public.content_plan;
+drop policy if exists "content_plan_role_access" on public.content_plan;
+create policy "content_plan_role_access" on public.content_plan
+  for all to authenticated using (public.app_role() is not null) with check (public.app_role() is not null);
+
+drop policy if exists "calendar_events_all_authenticated" on public.calendar_events;
+drop policy if exists "calendar_events_role_access" on public.calendar_events;
+create policy "calendar_events_role_access" on public.calendar_events
+  for all to authenticated using (public.app_role() is not null) with check (public.app_role() is not null);
+
+drop policy if exists "image_bank_all_authenticated" on public.image_bank;
+drop policy if exists "image_bank_role_access" on public.image_bank;
+create policy "image_bank_role_access" on public.image_bank
+  for all to authenticated using (public.app_role() is not null) with check (public.app_role() is not null);

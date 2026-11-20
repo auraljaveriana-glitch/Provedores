@@ -16,7 +16,17 @@
   var providers = [];
   var quotes = [];
   var currentUser = null; // { id, email }
+  var currentProfile = null; // { id, email, full_name, role }
+  var currentRole = null;
   var canWrite = false;
+
+  var ROLE_ACCESS = {
+    admin:       {sections:['diseno','video','contenido','calendario','imagenes','proveedores'], inventario:true},
+    diseno:      {sections:['diseno','contenido','calendario','imagenes'], inventario:false},
+    video:       {sections:['video','contenido','calendario','imagenes'], inventario:false},
+    proveedores: {sections:['contenido','calendario','imagenes','proveedores'], inventario:true}
+  };
+  var ROLE_LABELS = {admin:'Administrativo', diseno:'Diseño', video:'Video', proveedores:'Proveedores'};
   var uploading = false;
   var pendingProviderId = null;
   var quickProviderMode = false;
@@ -839,21 +849,88 @@
 
   function showApp(){
     document.getElementById('auth-screen').hidden = true;
+    document.getElementById('no-profile-screen').hidden = true;
     document.getElementById('app').hidden = false;
     var whoEl = document.getElementById('whoami');
-    whoEl.innerHTML = 'Conectado como <b>'+esc(currentUser.email)+'</b> · <button type="button" class="btn-text" id="btn-signout">Cerrar sesión</button>';
+    var roleLabel = currentProfile ? (ROLE_LABELS[currentProfile.role]||currentProfile.role) : '';
+    whoEl.innerHTML = 'Conectado como <b>'+esc(currentUser.email)+'</b>'+(roleLabel?(' · '+esc(roleLabel)):'')+' · <button type="button" class="btn-text" id="btn-signout">Cerrar sesión</button>';
     whoEl.hidden = false;
+  }
+  function showNoProfileScreen(){
+    document.getElementById('auth-screen').hidden = true;
+    document.getElementById('app').hidden = true;
+    document.getElementById('no-profile-screen').hidden = false;
   }
   function showAuthScreen(){
     document.getElementById('app').hidden = true;
+    document.getElementById('no-profile-screen').hidden = true;
     document.getElementById('auth-screen').hidden = false;
   }
 
+  function applyRoleVisibility(){
+    var access = ROLE_ACCESS[currentRole] || {sections:[], inventario:false};
+    document.querySelectorAll('.navitem[data-section]').forEach(function(btn){
+      var sec = btn.getAttribute('data-section');
+      btn.hidden = access.sections.indexOf(sec) === -1;
+    });
+    var invLink = document.getElementById('nav-inventario-link');
+    if(invLink) invLink.hidden = !access.inventario;
+
+    var activeBtn = document.querySelector('.navitem[data-section].active');
+    if(!activeBtn || activeBtn.hidden){
+      document.querySelectorAll('.navitem[data-section]').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.mainsec').forEach(function(s){ s.classList.remove('active'); });
+      var firstSec = access.sections[0];
+      if(firstSec){
+        var firstBtn = document.querySelector('.navitem[data-section="'+firstSec+'"]');
+        var firstPanel = document.getElementById('sec-'+firstSec);
+        if(firstBtn) firstBtn.classList.add('active');
+        if(firstPanel) firstPanel.classList.add('active');
+        if(firstSec==='calendario') renderCalendar();
+      }
+    }
+  }
+
+  function fetchProfile(){
+    return sb.from('profiles').select('*').eq('id', currentUser.id).maybeSingle().then(function(res){
+      if(res.error){ console.error(res.error); currentProfile = null; }
+      else { currentProfile = res.data || null; }
+      currentRole = currentProfile ? currentProfile.role : null;
+
+      if(!currentProfile){
+        showNoProfileScreen();
+        return;
+      }
+
+      applyRoleVisibility();
+      applyWriteGating();
+      showApp();
+      fetchProviders(); fetchQuotes();
+      fetchCreativeProjects(); fetchContentPlan(); fetchCalendarEvents(); fetchImageBank();
+      subscribeRealtime();
+    });
+  }
+
+  document.getElementById('no-profile-signout').addEventListener('click', function(){ sb.auth.signOut(); });
+
   function applyWriteGating(){
-    canWrite = !!currentUser;
-    ['btn-new-quote','btn-new-provider','btn-quick-provider',
-     'btn-new-project-diseno','btn-new-project-video','btn-new-content','btn-new-event','btn-new-image'
-    ].forEach(function(id){
+    canWrite = !!currentUser && !!currentRole;
+    var isAdmin = currentRole === 'admin';
+    var canProviders = isAdmin || currentRole === 'proveedores';
+
+    ['btn-new-quote','btn-new-provider','btn-quick-provider'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.disabled = !(canWrite && canProviders);
+    });
+    // Crear proyectos nuevos de diseño/video queda solo para Administrativo —
+    // diseño y video pueden mover y editar lo que ya les asignaron, pero no
+    // crear tarjetas nuevas. Se oculta (no solo se deshabilita) porque para
+    // esos roles nunca va a estar disponible.
+    ['btn-new-project-diseno','btn-new-project-video'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.hidden = !(canWrite && isAdmin);
+    });
+    ['btn-new-content','btn-new-event','btn-new-image'].forEach(function(id){
       var el = document.getElementById(id);
       if(el) el.disabled = !canWrite;
     });
@@ -913,12 +990,19 @@
   /* -------- Kanban: proyectos de diseño / video -------- */
 
   function projectsByKind(kind){
-    return creativeProjects.filter(function(p){ return p.kind===kind; });
+    var list = creativeProjects.filter(function(p){ return p.kind===kind; });
+    // Los roles "diseno" y "video" solo ven las tarjetas asignadas a su propio nombre.
+    if(currentRole==='diseno' || currentRole==='video'){
+      var mine = ((currentProfile && currentProfile.full_name) || '').trim().toLowerCase();
+      list = list.filter(function(p){ return (p.assignee||'').trim().toLowerCase() === mine && mine !== ''; });
+    }
+    return list;
   }
 
   function renderProjectCard(p){
     var overdue = p.due_date && p.due_date < todayISO() && p.status!=='terminado';
     var prioLabel = {alta:'Alta',media:'Media',baja:'Baja'}[p.priority];
+    var isAdmin = currentRole === 'admin';
     return '<div class="kcard" id="pcardel-'+p.id+'" draggable="'+(canWrite?'true':'false')+'">'+
       (p.source==='solicitud' ? '<span class="krequest-badge">📩 Solicitud</span>' : '')+
       (p.priority ? '<span class="kprio '+esc(p.priority)+'">'+esc(prioLabel||p.priority)+'</span>' : '')+
@@ -930,7 +1014,7 @@
         (p.due_date ? '<span class="'+(overdue?'kdue-overdue':'')+'">📅 '+fmtDate(p.due_date)+'</span>' : '')+
       '</div>'+
       (p.link_url ? '<a class="kcard-link" href="'+esc(p.link_url)+'" target="_blank" rel="noopener">🔗 Ver enlace</a>' : '')+
-      (canWrite ? '<div class="actions"><button class="btn-text" id="pedit-'+p.id+'" type="button">Editar</button><button class="btn-text danger" id="pdel-'+p.id+'" type="button">Eliminar</button></div>' : '')+
+      (canWrite ? '<div class="actions"><button class="btn-text" id="pedit-'+p.id+'" type="button">Editar</button>'+(isAdmin?'<button class="btn-text danger" id="pdel-'+p.id+'" type="button">Eliminar</button>':'')+'</div>' : '')+
     '</div>';
   }
 
@@ -1470,11 +1554,7 @@
 
   function handleSession(session){
     currentUser = session.user;
-    applyWriteGating();
-    showApp();
-    fetchProviders(); fetchQuotes();
-    fetchCreativeProjects(); fetchContentPlan(); fetchCalendarEvents(); fetchImageBank();
-    subscribeRealtime();
+    fetchProfile();
   }
 
   sb.auth.getSession().then(function(res){
@@ -1487,6 +1567,8 @@
       handleSession(session);
     } else {
       currentUser = null;
+      currentProfile = null;
+      currentRole = null;
       applyWriteGating();
       showAuthScreen();
     }
