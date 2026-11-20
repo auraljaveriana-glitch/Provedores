@@ -12,7 +12,14 @@
   // cliente con la llave pública, que en Supabase opera con el rol "anon".
   // Las políticas de seguridad (ver schema.sql, FASE 3) solo le permiten
   // CREAR solicitudes nuevas — nunca leer, editar ni borrar nada.
-  var sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  // Importante: esta página vive en el mismo dominio que el panel interno,
+  // así que si en este mismo navegador alguien ya inició sesión ahí, el
+  // cliente de Supabase recogería esa sesión guardada y la solicitud
+  // dejaría de enviarse como "anon". Para evitarlo, este cliente nunca lee
+  // ni guarda ninguna sesión: siempre actúa como visitante anónimo.
+  var sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+  });
 
   function todayISO(){ return new Date().toISOString().slice(0,10); }
 
