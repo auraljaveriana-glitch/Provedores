@@ -136,3 +136,152 @@ alter table public.providers add column if not exists rut_file_type text;
 alter table public.providers add column if not exists bank_file_path text;
 alter table public.providers add column if not exists bank_file_name text;
 alter table public.providers add column if not exists bank_file_type text;
+
+-- ======================================================================
+-- FASE 2: MARKETING (proyectos de diseño/video, plan de contenidos,
+-- calendario y banco de imágenes).
+-- Pega este bloque completo en Supabase > SQL Editor > New query > Run.
+-- Es seguro ejecutarlo varias veces, y no afecta nada de lo que ya existe.
+-- ======================================================================
+
+create table if not exists public.creative_projects (
+  id uuid primary key default gen_random_uuid(),
+  kind text not null check (kind in ('diseno','video')),
+  name text not null,
+  description text,
+  status text not null default 'todo' check (status in ('todo','en_proceso','revision','terminado')),
+  assignee text,
+  due_date date,
+  priority text check (priority in ('alta','media','baja')),
+  link_url text,
+  notes text,
+  created_by text,
+  updated_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.content_plan (
+  id uuid primary key default gen_random_uuid(),
+  platform text,
+  content_type text,
+  publish_date date,
+  status text not null default 'idea' check (status in ('idea','en_diseno','programado','publicado')),
+  assignee text,
+  copy_text text,
+  link_url text,
+  notes text,
+  created_by text,
+  updated_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.calendar_events (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  event_date date not null,
+  description text,
+  created_by text,
+  updated_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.image_bank (
+  id uuid primary key default gen_random_uuid(),
+  title text,
+  category text,
+  file_path text,
+  file_name text,
+  file_type text,
+  notes text,
+  created_by text,
+  updated_by text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_creative_projects_updated_at on public.creative_projects;
+create trigger trg_creative_projects_updated_at before update on public.creative_projects
+  for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_content_plan_updated_at on public.content_plan;
+create trigger trg_content_plan_updated_at before update on public.content_plan
+  for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_calendar_events_updated_at on public.calendar_events;
+create trigger trg_calendar_events_updated_at before update on public.calendar_events
+  for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_image_bank_updated_at on public.image_bank;
+create trigger trg_image_bank_updated_at before update on public.image_bank
+  for each row execute function public.set_updated_at();
+
+alter table public.creative_projects enable row level security;
+alter table public.content_plan enable row level security;
+alter table public.calendar_events enable row level security;
+alter table public.image_bank enable row level security;
+
+drop policy if exists "creative_projects_all_authenticated" on public.creative_projects;
+create policy "creative_projects_all_authenticated" on public.creative_projects
+  for all to authenticated using (true) with check (true);
+
+drop policy if exists "content_plan_all_authenticated" on public.content_plan;
+create policy "content_plan_all_authenticated" on public.content_plan
+  for all to authenticated using (true) with check (true);
+
+drop policy if exists "calendar_events_all_authenticated" on public.calendar_events;
+create policy "calendar_events_all_authenticated" on public.calendar_events
+  for all to authenticated using (true) with check (true);
+
+drop policy if exists "image_bank_all_authenticated" on public.image_bank;
+create policy "image_bank_all_authenticated" on public.image_bank
+  for all to authenticated using (true) with check (true);
+
+-- Banco de imágenes: bucket público (son imágenes de marketing, no datos
+-- sensibles) para que las miniaturas carguen rápido sin pedir una URL
+-- firmada por cada una.
+insert into storage.buckets (id, name, public)
+values ('banco-imagenes', 'banco-imagenes', true)
+on conflict (id) do nothing;
+
+drop policy if exists "banco_imagenes_insert" on storage.objects;
+create policy "banco_imagenes_insert" on storage.objects
+  for insert to authenticated with check (bucket_id = 'banco-imagenes');
+
+drop policy if exists "banco_imagenes_select" on storage.objects;
+create policy "banco_imagenes_select" on storage.objects
+  for select using (bucket_id = 'banco-imagenes');
+
+drop policy if exists "banco_imagenes_delete" on storage.objects;
+create policy "banco_imagenes_delete" on storage.objects
+  for delete to authenticated using (bucket_id = 'banco-imagenes');
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'creative_projects'
+  ) then
+    alter publication supabase_realtime add table public.creative_projects;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'content_plan'
+  ) then
+    alter publication supabase_realtime add table public.content_plan;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'calendar_events'
+  ) then
+    alter publication supabase_realtime add table public.calendar_events;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'image_bank'
+  ) then
+    alter publication supabase_realtime add table public.image_bank;
+  end if;
+end $$;

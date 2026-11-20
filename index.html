@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Proveedores &amp; cotizaciones — Aural</title>
+<title>Aural Marketing</title>
 <link rel="icon" href="aural-logo.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="styles.css">
@@ -13,7 +13,7 @@
 <div id="auth-screen">
   <div class="auth-card">
     <span class="logo-chip"><img class="brand-logo" src="aural-logo.png" alt="Aural"></span>
-    <h2>Proveedores &amp; cotizaciones</h2>
+    <h2>Aural Marketing</h2>
     <p class="hint">Inicia sesión con el correo y la contraseña que te asignaron.</p>
     <form id="auth-form">
       <input type="email" id="auth-email" placeholder="Correo" autocomplete="username" required>
@@ -27,61 +27,158 @@
 </div>
 
 <div id="app" hidden>
-  <header class="topbar">
-    <div class="brand">
-      <span class="logo-chip"><img class="brand-logo" src="aural-logo.png" alt="Aural"></span>
-      <div class="brand-text">
-        <span class="brand-sub">Centros Auditivos</span>
+  <div class="shell">
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span class="logo-chip"><img class="brand-logo" src="aural-logo.png" alt="Aural"></span>
+        <div class="brand-text">
+          <span class="brand-title">Marketing</span>
+          <span class="brand-sub">Aural</span>
+        </div>
       </div>
-    </div>
-    <h1>Proveedores &amp; cotizaciones</h1>
-    <p id="whoami" class="whoami" hidden></p>
-    <nav class="tabs" role="tablist">
-      <button class="tab active" data-tab="quotes" role="tab" aria-selected="true">Cotizaciones</button>
-      <button class="tab" data-tab="providers" role="tab" aria-selected="false">Proveedores</button>
-      <button class="tab" data-tab="compare" role="tab" aria-selected="false">Comparar</button>
+      <div class="navlist">
+        <button class="navitem active" data-section="diseno" type="button"><span class="navicon">🎨</span> Proyectos de diseño</button>
+        <button class="navitem" data-section="video" type="button"><span class="navicon">🎬</span> Proyectos de video</button>
+        <button class="navitem" data-section="contenido" type="button"><span class="navicon">🗂️</span> Plan de contenidos</button>
+        <button class="navitem" data-section="calendario" type="button"><span class="navicon">📅</span> Calendario</button>
+        <button class="navitem" data-section="imagenes" type="button"><span class="navicon">🖼️</span> Banco de imágenes</button>
+        <button class="navitem" data-section="proveedores" type="button"><span class="navicon">🧾</span> Proveedores</button>
+        <a class="navitem navlink" href="https://inventarioauralcol.netlify.app" target="_blank" rel="noopener"><span class="navicon">📦</span> Inventario ↗</a>
+      </div>
+      <div class="sidebar-foot"><p id="whoami" class="whoami" hidden></p></div>
     </nav>
-  </header>
 
-  <div id="pending-banner" class="pending-banner" hidden></div>
-  <section class="stats" id="stats"></section>
+    <div class="main-area">
 
-  <main>
-    <section id="view-quotes" class="view active">
-      <div class="toolbar">
-        <input type="text" id="q-search" placeholder="Buscar por proveedor o descripción…">
-        <select id="q-filter-provider"><option value="">Todos los proveedores</option></select>
-        <select id="q-filter-status">
-          <option value="">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="abono">Abono 50% pagado</option>
-          <option value="completo">Pagado completo</option>
-        </select>
-        <button class="btn-ghost" id="btn-export-quotes" type="button">⬇ Descargar datos de pago (CSV)</button>
-        <button class="btn-primary" id="btn-new-quote" type="button">+ Nueva cotización</button>
-      </div>
-      <div id="quotes-list" class="quotes-list"></div>
-      <p id="quotes-empty" class="empty" hidden>Aún no hay cotizaciones registradas. Crea la primera con "Nueva cotización".</p>
-    </section>
+      <section id="sec-diseno" class="mainsec active">
+        <div class="sec-head">
+          <h1>Proyectos de diseño</h1>
+          <button class="btn-primary" id="btn-new-project-diseno" type="button">+ Nuevo proyecto</button>
+        </div>
+        <div class="kanban-board" id="board-diseno"></div>
+      </section>
 
-    <section id="view-providers" class="view">
-      <div class="toolbar">
-        <input type="text" id="p-search" placeholder="Buscar proveedor por nombre o categoría…">
-        <button class="btn-ghost" id="btn-export-providers" type="button">⬇ Descargar RUT y cuentas (CSV)</button>
-        <button class="btn-primary" id="btn-new-provider" type="button">+ Nuevo proveedor</button>
-      </div>
-      <div id="providers-grid" class="providers-grid"></div>
-      <p id="providers-empty" class="empty" hidden>Aún no hay proveedores registrados.</p>
-    </section>
+      <section id="sec-video" class="mainsec">
+        <div class="sec-head">
+          <h1>Proyectos de video</h1>
+          <button class="btn-primary" id="btn-new-project-video" type="button">+ Nuevo proyecto</button>
+        </div>
+        <div class="kanban-board" id="board-video"></div>
+      </section>
 
-    <section id="view-compare" class="view">
-      <div class="toolbar">
-        <input type="text" id="c-search" placeholder="Ej: audífono retroauricular, pilas 312, pendones…">
-      </div>
-      <div id="compare-results"></div>
-      <p id="compare-empty" class="empty">Escribe qué producto o servicio quieres comparar entre proveedores — se agruparán las cotizaciones que coincidan y se resaltará la de mejor precio.</p>
-    </section>
-  </main>
+      <section id="sec-contenido" class="mainsec">
+        <div class="sec-head">
+          <h1>Plan de contenidos</h1>
+          <button class="btn-primary" id="btn-new-content" type="button">+ Nueva publicación</button>
+        </div>
+        <div class="toolbar">
+          <input type="text" id="ct-search" placeholder="Buscar por texto, responsable…">
+          <select id="ct-filter-platform">
+            <option value="">Todas las redes</option>
+            <option value="Instagram">Instagram</option>
+            <option value="Facebook">Facebook</option>
+            <option value="TikTok">TikTok</option>
+            <option value="YouTube">YouTube</option>
+            <option value="LinkedIn">LinkedIn</option>
+            <option value="Otra">Otra</option>
+          </select>
+          <select id="ct-filter-status">
+            <option value="">Todos los estados</option>
+            <option value="idea">Idea</option>
+            <option value="en_diseno">En diseño</option>
+            <option value="programado">Programado</option>
+            <option value="publicado">Publicado</option>
+          </select>
+        </div>
+        <div id="content-list" class="quotes-list"></div>
+        <p id="content-empty" class="empty" hidden>Aún no hay publicaciones planeadas. Crea la primera con "Nueva publicación".</p>
+      </section>
+
+      <section id="sec-calendario" class="mainsec">
+        <div class="sec-head">
+          <h1>Calendario</h1>
+          <button class="btn-primary" id="btn-new-event" type="button">+ Agregar evento</button>
+        </div>
+        <div class="cal-toolbar">
+          <button class="btn-ghost" id="cal-prev" type="button">‹</button>
+          <h2 id="cal-month-label"></h2>
+          <button class="btn-ghost" id="cal-next" type="button">›</button>
+          <button class="btn-ghost" id="cal-today" type="button">Hoy</button>
+        </div>
+        <div class="cal-legend">
+          <span><i class="dot dot-manual"></i>Evento</span>
+          <span><i class="dot dot-diseno"></i>Entrega diseño</span>
+          <span><i class="dot dot-video"></i>Entrega video</span>
+          <span><i class="dot dot-contenido"></i>Publicación</span>
+        </div>
+        <div id="calendar-grid" class="calendar-grid"></div>
+      </section>
+
+      <section id="sec-imagenes" class="mainsec">
+        <div class="sec-head">
+          <h1>Banco de imágenes</h1>
+          <button class="btn-primary" id="btn-new-image" type="button">+ Subir imagen</button>
+        </div>
+        <div class="toolbar">
+          <input type="text" id="im-search" placeholder="Buscar por título o categoría…">
+        </div>
+        <div id="image-grid" class="image-grid"></div>
+        <p id="image-empty" class="empty" hidden>Aún no hay imágenes en el banco. Sube la primera con "Subir imagen".</p>
+      </section>
+
+      <section id="sec-proveedores" class="mainsec">
+        <header class="topbar-sm">
+          <h1>Proveedores &amp; cotizaciones</h1>
+          <nav class="tabs" role="tablist">
+            <button class="tab active" data-tab="quotes" role="tab" aria-selected="true">Cotizaciones</button>
+            <button class="tab" data-tab="providers" role="tab" aria-selected="false">Proveedores</button>
+            <button class="tab" data-tab="compare" role="tab" aria-selected="false">Comparar</button>
+          </nav>
+        </header>
+
+        <div id="pending-banner" class="pending-banner" hidden></div>
+        <section class="stats" id="stats"></section>
+
+        <main>
+          <section id="view-quotes" class="view active">
+            <div class="toolbar">
+              <input type="text" id="q-search" placeholder="Buscar por proveedor o descripción…">
+              <select id="q-filter-provider"><option value="">Todos los proveedores</option></select>
+              <select id="q-filter-status">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="abono">Abono 50% pagado</option>
+                <option value="completo">Pagado completo</option>
+              </select>
+              <button class="btn-ghost" id="btn-export-quotes" type="button">⬇ Descargar datos de pago (CSV)</button>
+              <button class="btn-primary" id="btn-new-quote" type="button">+ Nueva cotización</button>
+            </div>
+            <div id="quotes-list" class="quotes-list"></div>
+            <p id="quotes-empty" class="empty" hidden>Aún no hay cotizaciones registradas. Crea la primera con "Nueva cotización".</p>
+          </section>
+
+          <section id="view-providers" class="view">
+            <div class="toolbar">
+              <input type="text" id="p-search" placeholder="Buscar proveedor por nombre o categoría…">
+              <button class="btn-ghost" id="btn-export-providers" type="button">⬇ Descargar RUT y cuentas (CSV)</button>
+              <button class="btn-primary" id="btn-new-provider" type="button">+ Nuevo proveedor</button>
+            </div>
+            <div id="providers-grid" class="providers-grid"></div>
+            <p id="providers-empty" class="empty" hidden>Aún no hay proveedores registrados.</p>
+          </section>
+
+          <section id="view-compare" class="view">
+            <div class="toolbar">
+              <input type="text" id="c-search" placeholder="Ej: audífono retroauricular, pilas 312, pendones…">
+            </div>
+            <div id="compare-results"></div>
+            <p id="compare-empty" class="empty">Escribe qué producto o servicio quieres comparar entre proveedores — se agruparán las cotizaciones que coincidan y se resaltará la de mejor precio.</p>
+          </section>
+        </main>
+      </section>
+
+    </div>
+  </div>
 </div>
 
 <dialog id="dlg-provider">
@@ -235,6 +332,143 @@
     <div class="dlg-actions">
       <button type="button" class="btn-ghost" data-close="dlg-quote">Cancelar</button>
       <button type="submit" class="btn-primary" id="qt-submit">Guardar cotización</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-project">
+  <div class="dlg-head"><h2 id="dlg-project-title">Nuevo proyecto</h2><button class="dlg-close" type="button" data-close="dlg-project">✕</button></div>
+  <form class="dlg-body" id="form-project">
+    <input type="hidden" id="pj-id">
+    <input type="hidden" id="pj-kind">
+    <div class="field"><label>Nombre del proyecto *</label><input type="text" id="pj-name" required></div>
+    <div class="field"><label>Descripción</label><textarea id="pj-description"></textarea></div>
+    <div class="row2">
+      <div class="field"><label>Responsable</label><input type="text" id="pj-assignee"></div>
+      <div class="field"><label>Fecha de entrega</label><input type="date" id="pj-due"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Estado</label>
+        <select id="pj-status">
+          <option value="todo">Por hacer</option>
+          <option value="en_proceso">En proceso</option>
+          <option value="revision">Revisión</option>
+          <option value="terminado">Terminado</option>
+        </select>
+      </div>
+      <div class="field"><label>Prioridad</label>
+        <select id="pj-priority"><option value="">—</option><option value="alta">Alta</option><option value="media">Media</option><option value="baja">Baja</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Enlace (Canva, Drive, Frame.io, etc.)</label><input type="url" id="pj-link" placeholder="https://…"></div>
+    <div class="field"><label>Notas</label><textarea id="pj-notes"></textarea></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close="dlg-project">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar proyecto</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-content">
+  <div class="dlg-head"><h2 id="dlg-content-title">Nueva publicación</h2><button class="dlg-close" type="button" data-close="dlg-content">✕</button></div>
+  <form class="dlg-body" id="form-content">
+    <input type="hidden" id="ct-id">
+    <div class="row2">
+      <div class="field"><label>Red social</label>
+        <select id="ct-platform">
+          <option value="">—</option>
+          <option value="Instagram">Instagram</option>
+          <option value="Facebook">Facebook</option>
+          <option value="TikTok">TikTok</option>
+          <option value="YouTube">YouTube</option>
+          <option value="LinkedIn">LinkedIn</option>
+          <option value="Otra">Otra</option>
+        </select>
+      </div>
+      <div class="field"><label>Tipo de contenido</label>
+        <select id="ct-type">
+          <option value="">—</option>
+          <option value="Post">Post</option>
+          <option value="Reel">Reel</option>
+          <option value="Historia">Historia</option>
+          <option value="Video">Video</option>
+          <option value="Carrusel">Carrusel</option>
+          <option value="Otro">Otro</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Fecha de publicación</label><input type="date" id="ct-date"></div>
+      <div class="field"><label>Estado</label>
+        <select id="ct-status">
+          <option value="idea">Idea</option>
+          <option value="en_diseno">En diseño</option>
+          <option value="programado">Programado</option>
+          <option value="publicado">Publicado</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Responsable</label><input type="text" id="ct-assignee"></div>
+    <div class="field"><label>Copy / texto</label><textarea id="ct-copy" placeholder="Texto o guion de la publicación…"></textarea></div>
+    <div class="field"><label>Enlace al diseño o video</label><input type="url" id="ct-link" placeholder="https://…"></div>
+    <div class="field"><label>Notas</label><textarea id="ct-notes"></textarea></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close="dlg-content">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar publicación</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-event">
+  <div class="dlg-head"><h2 id="dlg-event-title">Nuevo evento</h2><button class="dlg-close" type="button" data-close="dlg-event">✕</button></div>
+  <form class="dlg-body" id="form-event">
+    <input type="hidden" id="ev-id">
+    <div class="field"><label>Título *</label><input type="text" id="ev-title" required></div>
+    <div class="field"><label>Fecha *</label><input type="date" id="ev-date" required></div>
+    <div class="field"><label>Descripción</label><textarea id="ev-description"></textarea></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close="dlg-event">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar evento</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-day">
+  <div class="dlg-head"><h2 id="dlg-day-title">Día</h2><button class="dlg-close" type="button" data-close="dlg-day">✕</button></div>
+  <div class="dlg-body">
+    <div id="dlg-day-list"></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close="dlg-day">Cerrar</button>
+      <button type="button" class="btn-primary" id="dlg-day-add">+ Agregar evento este día</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dlg-image">
+  <div class="dlg-head"><h2 id="dlg-image-title">Subir imagen</h2><button class="dlg-close" type="button" data-close="dlg-image">✕</button></div>
+  <form class="dlg-body" id="form-image">
+    <input type="hidden" id="im-id">
+    <div class="field"><label>Título</label><input type="text" id="im-title"></div>
+    <div class="field"><label>Categoría</label>
+      <input type="text" id="im-category" list="im-cat-list" placeholder="Ej: Redes sociales, Impresos, Producto, Eventos…">
+      <datalist id="im-cat-list">
+        <option value="Redes sociales">
+        <option value="Impresos">
+        <option value="Fotografía de producto">
+        <option value="Eventos">
+        <option value="Otro">
+      </datalist>
+    </div>
+    <div class="field">
+      <label>Imagen</label>
+      <input type="file" id="im-file" accept="image/*">
+      <span class="file-current" id="im-file-current"></span>
+    </div>
+    <img id="im-preview" alt="" style="max-width:100%;border-radius:10px;display:none;margin-top:4px;">
+    <div class="field"><label>Notas</label><textarea id="im-notes"></textarea></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close="dlg-image">Cancelar</button>
+      <button type="submit" class="btn-primary">Guardar imagen</button>
     </div>
   </form>
 </dialog>

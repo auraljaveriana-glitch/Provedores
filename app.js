@@ -851,11 +851,581 @@
 
   function applyWriteGating(){
     canWrite = !!currentUser;
-    ['btn-new-quote','btn-new-provider','btn-quick-provider'].forEach(function(id){
+    ['btn-new-quote','btn-new-provider','btn-quick-provider',
+     'btn-new-project-diseno','btn-new-project-video','btn-new-content','btn-new-event','btn-new-image'
+    ].forEach(function(id){
       var el = document.getElementById(id);
       if(el) el.disabled = !canWrite;
     });
   }
+
+  /* ================================================================
+     MARKETING: proyectos (Kanban), plan de contenidos, calendario
+     y banco de imágenes.
+     ================================================================ */
+
+  var BUCKET2 = "banco-imagenes";
+  var creativeProjects = [];
+  var contentItems = [];
+  var calendarEvents = [];
+  var imageBank = [];
+
+  var PROJECT_STATUSES = [
+    {key:'todo', label:'Por hacer'},
+    {key:'en_proceso', label:'En proceso'},
+    {key:'revision', label:'Revisión'},
+    {key:'terminado', label:'Terminado'}
+  ];
+  var CONTENT_STATUSES = { idea:'Idea', en_diseno:'En diseño', programado:'Programado', publicado:'Publicado' };
+
+  function fetchCreativeProjects(){
+    return sb.from('creative_projects').select('*').then(function(res){
+      if(res.error){ console.error(res.error); return; }
+      creativeProjects = res.data || [];
+      renderKanban('diseno');
+      renderKanban('video');
+      renderCalendar();
+    });
+  }
+  function fetchContentPlan(){
+    return sb.from('content_plan').select('*').then(function(res){
+      if(res.error){ console.error(res.error); return; }
+      contentItems = res.data || [];
+      renderContentPlan();
+      renderCalendar();
+    });
+  }
+  function fetchCalendarEvents(){
+    return sb.from('calendar_events').select('*').then(function(res){
+      if(res.error){ console.error(res.error); return; }
+      calendarEvents = res.data || [];
+      renderCalendar();
+    });
+  }
+  function fetchImageBank(){
+    return sb.from('image_bank').select('*').then(function(res){
+      if(res.error){ console.error(res.error); return; }
+      imageBank = res.data || [];
+      renderImageBank();
+    });
+  }
+
+  /* -------- Kanban: proyectos de diseño / video -------- */
+
+  function projectsByKind(kind){
+    return creativeProjects.filter(function(p){ return p.kind===kind; });
+  }
+
+  function renderProjectCard(p){
+    var overdue = p.due_date && p.due_date < todayISO() && p.status!=='terminado';
+    var prioLabel = {alta:'Alta',media:'Media',baja:'Baja'}[p.priority];
+    return '<div class="kcard" id="pcardel-'+p.id+'" draggable="'+(canWrite?'true':'false')+'">'+
+      (p.priority ? '<span class="kprio '+esc(p.priority)+'">'+esc(prioLabel||p.priority)+'</span>' : '')+
+      '<div class="kname">'+esc(p.name)+'</div>'+
+      (p.description ? '<div class="kdesc">'+esc(p.description)+'</div>' : '')+
+      '<div class="kmeta">'+
+        (p.assignee ? '<span>👤 '+esc(p.assignee)+'</span>' : '')+
+        (p.due_date ? '<span class="'+(overdue?'kdue-overdue':'')+'">📅 '+fmtDate(p.due_date)+'</span>' : '')+
+      '</div>'+
+      (p.link_url ? '<a class="kcard-link" href="'+esc(p.link_url)+'" target="_blank" rel="noopener">🔗 Ver enlace</a>' : '')+
+      (canWrite ? '<div class="actions"><button class="btn-text" id="pedit-'+p.id+'" type="button">Editar</button><button class="btn-text danger" id="pdel-'+p.id+'" type="button">Eliminar</button></div>' : '')+
+    '</div>';
+  }
+
+  function renderKanban(kind){
+    var board = document.getElementById('board-'+kind);
+    if(!board) return;
+    var list = projectsByKind(kind);
+    board.innerHTML = PROJECT_STATUSES.map(function(st){
+      var cards = list.filter(function(p){ return p.status===st.key; })
+        .sort(function(a,b){ return (a.due_date||'9999-99-99').localeCompare(b.due_date||'9999-99-99'); });
+      return '<div class="kcol">'+
+        '<div class="kcol-head">'+esc(st.label)+' <span class="kcol-count">'+cards.length+'</span></div>'+
+        '<div class="kcol-body" data-status="'+st.key+'">'+cards.map(renderProjectCard).join('')+'</div>'+
+      '</div>';
+    }).join('');
+
+    list.forEach(function(p){
+      var card = document.getElementById('pcardel-'+p.id);
+      if(card){
+        card.addEventListener('dragstart', function(ev){
+          ev.dataTransfer.setData('text/plain', p.id);
+          ev.dataTransfer.effectAllowed = 'move';
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', function(){ card.classList.remove('dragging'); });
+      }
+      var editBtn = document.getElementById('pedit-'+p.id);
+      if(editBtn) editBtn.addEventListener('click', function(){ openProjectDialog(kind, p.id); });
+      var delBtn = document.getElementById('pdel-'+p.id);
+      if(delBtn) delBtn.addEventListener('click', function(){ deleteProject(p.id); });
+    });
+
+    board.querySelectorAll('.kcol-body').forEach(function(col){
+      col.addEventListener('dragover', function(ev){ ev.preventDefault(); col.classList.add('dragover'); });
+      col.addEventListener('dragleave', function(){ col.classList.remove('dragover'); });
+      col.addEventListener('drop', function(ev){
+        ev.preventDefault();
+        col.classList.remove('dragover');
+        var pid = ev.dataTransfer.getData('text/plain');
+        var newStatus = col.getAttribute('data-status');
+        var p = creativeProjects.find(function(x){ return x.id===pid; });
+        if(!p || p.status===newStatus) return;
+        var oldStatus = p.status;
+        p.status = newStatus;
+        renderKanban(kind);
+        sb.from('creative_projects').update(Object.assign({status:newStatus}, meta(false))).eq('id', pid).then(function(res){
+          if(res.error){ alert('No se pudo mover el proyecto: '+res.error.message); p.status = oldStatus; renderKanban(kind); }
+        });
+      });
+    });
+  }
+
+  function openProjectDialog(kind, id){
+    var dlg = document.getElementById('dlg-project');
+    var p = id ? creativeProjects.find(function(x){ return x.id===id; }) : null;
+    document.getElementById('dlg-project-title').textContent = (p?'Editar':'Nuevo')+' proyecto de '+(kind==='video'?'video':'diseño');
+    document.getElementById('pj-id').value = p ? p.id : '';
+    document.getElementById('pj-kind').value = kind;
+    document.getElementById('pj-name').value = p ? (p.name||'') : '';
+    document.getElementById('pj-description').value = p ? (p.description||'') : '';
+    document.getElementById('pj-assignee').value = p ? (p.assignee||'') : '';
+    document.getElementById('pj-due').value = p ? (p.due_date||'') : '';
+    document.getElementById('pj-status').value = p ? (p.status||'todo') : 'todo';
+    document.getElementById('pj-priority').value = p ? (p.priority||'') : '';
+    document.getElementById('pj-link').value = p ? (p.link_url||'') : '';
+    document.getElementById('pj-notes').value = p ? (p.notes||'') : '';
+    dlg.showModal();
+  }
+
+  document.getElementById('btn-new-project-diseno').addEventListener('click', function(){ openProjectDialog('diseno', null); });
+  document.getElementById('btn-new-project-video').addEventListener('click', function(){ openProjectDialog('video', null); });
+
+  document.getElementById('form-project').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var id = document.getElementById('pj-id').value;
+    var kind = document.getElementById('pj-kind').value;
+    var data = {
+      kind: kind,
+      name: document.getElementById('pj-name').value.trim(),
+      description: document.getElementById('pj-description').value.trim(),
+      assignee: document.getElementById('pj-assignee').value.trim(),
+      due_date: orNull(document.getElementById('pj-due').value),
+      status: document.getElementById('pj-status').value,
+      priority: document.getElementById('pj-priority').value || null,
+      link_url: document.getElementById('pj-link').value.trim(),
+      notes: document.getElementById('pj-notes').value.trim()
+    };
+    Object.assign(data, meta(!id));
+    if(!data.name) return;
+    var submitBtn = document.getElementById('dlg-project').querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+    var task = id ? sb.from('creative_projects').update(data).eq('id', id) : sb.from('creative_projects').insert(data);
+    task.then(function(res){
+      submitBtn.disabled = false;
+      if(res.error){ alert('No se pudo guardar: '+res.error.message); return; }
+      document.getElementById('dlg-project').close();
+      fetchCreativeProjects();
+    });
+  });
+
+  function deleteProject(id){
+    if(!confirm('¿Eliminar este proyecto?')) return;
+    sb.from('creative_projects').delete().eq('id', id).then(function(res){
+      if(res.error){ alert('No se pudo eliminar: '+res.error.message); return; }
+      fetchCreativeProjects();
+    });
+  }
+
+  /* -------- Plan de contenidos -------- */
+
+  function renderContentCard(c){
+    var label = [c.platform, c.content_type].filter(Boolean).join(' · ') || 'Publicación';
+    return '<div class="qcard">'+
+      '<div class="main">'+
+        '<div class="prov">'+esc(label)+'</div>'+
+        '<div class="desc">'+esc(c.copy_text ? (c.copy_text.length>140?c.copy_text.slice(0,140)+'…':c.copy_text) : '(sin copy)')+'</div>'+
+        '<div class="meta">'+
+          '<span>Publicación: <b>'+fmtDate(c.publish_date)+'</b></span>'+
+          (c.assignee ? '<span>Responsable: <b>'+esc(c.assignee)+'</b></span>' : '')+
+        '</div>'+
+        (c.link_url ? '<div style="margin-top:8px;"><a class="file-link" href="'+esc(c.link_url)+'" target="_blank" rel="noopener">🔗 Ver diseño/video</a></div>' : '')+
+      '</div>'+
+      '<div class="side">'+
+        '<span class="pill ct-'+esc(c.status)+'">'+esc(CONTENT_STATUSES[c.status]||c.status)+'</span>'+
+        (canWrite ? '<div class="actions"><button class="btn-text" id="ctedit-'+c.id+'" type="button">Editar</button><button class="btn-text danger" id="ctdel-'+c.id+'" type="button">Eliminar</button></div>' : '')+
+      '</div>'+
+    '</div>';
+  }
+
+  function renderContentPlan(){
+    var search = document.getElementById('ct-search').value.trim().toLowerCase();
+    var fPlatform = document.getElementById('ct-filter-platform').value;
+    var fStatus = document.getElementById('ct-filter-status').value;
+    var list = contentItems.filter(function(c){
+      if(fPlatform && c.platform!==fPlatform) return false;
+      if(fStatus && c.status!==fStatus) return false;
+      if(search){
+        var hay = ((c.copy_text||'')+' '+(c.assignee||'')+' '+(c.content_type||'')).toLowerCase();
+        if(hay.indexOf(search)===-1) return false;
+      }
+      return true;
+    }).sort(function(a,b){ return (a.publish_date||'9999-99-99').localeCompare(b.publish_date||'9999-99-99'); });
+
+    document.getElementById('content-empty').hidden = contentItems.length !== 0;
+    document.getElementById('content-list').innerHTML = list.map(renderContentCard).join('');
+
+    list.forEach(function(c){
+      var editBtn = document.getElementById('ctedit-'+c.id);
+      var delBtn = document.getElementById('ctdel-'+c.id);
+      if(editBtn) editBtn.addEventListener('click', function(){ openContentDialog(c.id); });
+      if(delBtn) delBtn.addEventListener('click', function(){ deleteContent(c.id); });
+    });
+  }
+
+  function openContentDialog(id){
+    var dlg = document.getElementById('dlg-content');
+    var c = id ? contentItems.find(function(x){ return x.id===id; }) : null;
+    document.getElementById('dlg-content-title').textContent = c ? 'Editar publicación' : 'Nueva publicación';
+    document.getElementById('ct-id').value = c ? c.id : '';
+    document.getElementById('ct-platform').value = c ? (c.platform||'') : '';
+    document.getElementById('ct-type').value = c ? (c.content_type||'') : '';
+    document.getElementById('ct-date').value = c ? (c.publish_date||'') : '';
+    document.getElementById('ct-status').value = c ? (c.status||'idea') : 'idea';
+    document.getElementById('ct-assignee').value = c ? (c.assignee||'') : '';
+    document.getElementById('ct-copy').value = c ? (c.copy_text||'') : '';
+    document.getElementById('ct-link').value = c ? (c.link_url||'') : '';
+    document.getElementById('ct-notes').value = c ? (c.notes||'') : '';
+    dlg.showModal();
+  }
+
+  document.getElementById('btn-new-content').addEventListener('click', function(){ openContentDialog(null); });
+
+  document.getElementById('form-content').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var id = document.getElementById('ct-id').value;
+    var data = {
+      platform: document.getElementById('ct-platform').value,
+      content_type: document.getElementById('ct-type').value,
+      publish_date: orNull(document.getElementById('ct-date').value),
+      status: document.getElementById('ct-status').value,
+      assignee: document.getElementById('ct-assignee').value.trim(),
+      copy_text: document.getElementById('ct-copy').value.trim(),
+      link_url: document.getElementById('ct-link').value.trim(),
+      notes: document.getElementById('ct-notes').value.trim()
+    };
+    Object.assign(data, meta(!id));
+    var submitBtn = document.getElementById('dlg-content').querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+    var task = id ? sb.from('content_plan').update(data).eq('id', id) : sb.from('content_plan').insert(data);
+    task.then(function(res){
+      submitBtn.disabled = false;
+      if(res.error){ alert('No se pudo guardar: '+res.error.message); return; }
+      document.getElementById('dlg-content').close();
+      fetchContentPlan();
+    });
+  });
+
+  function deleteContent(id){
+    if(!confirm('¿Eliminar esta publicación del plan?')) return;
+    sb.from('content_plan').delete().eq('id', id).then(function(res){
+      if(res.error){ alert('No se pudo eliminar: '+res.error.message); return; }
+      fetchContentPlan();
+    });
+  }
+
+  ['ct-search','ct-filter-platform','ct-filter-status'].forEach(function(id){
+    var el = document.getElementById(id);
+    el.addEventListener('input', renderContentPlan);
+    el.addEventListener('change', renderContentPlan);
+  });
+
+  /* -------- Calendario -------- */
+
+  var calViewYear, calViewMonth;
+  (function initCalState(){
+    var now = new Date();
+    calViewYear = now.getFullYear();
+    calViewMonth = now.getMonth();
+  })();
+
+  var MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var DOW_NAMES = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+
+  function pad2(n){ return n<10 ? '0'+n : ''+n; }
+  function dateKey(y,m,d){ return y+'-'+pad2(m+1)+'-'+pad2(d); }
+
+  function buildDayMap(){
+    var map = {};
+    function push(dateStr, item){
+      if(!dateStr) return;
+      if(!map[dateStr]) map[dateStr] = [];
+      map[dateStr].push(item);
+    }
+    calendarEvents.forEach(function(e){
+      push(e.event_date, {type:'manual', title:e.title, description:e.description, id:e.id});
+    });
+    creativeProjects.forEach(function(p){
+      if(p.due_date) push(p.due_date, {type:(p.kind==='video'?'video':'diseno'), title:'Entrega: '+p.name, description:p.assignee?('Responsable: '+p.assignee):''});
+    });
+    contentItems.forEach(function(c){
+      if(c.publish_date) push(c.publish_date, {type:'contenido', title:'Publicar: '+([c.platform,c.content_type].filter(Boolean).join(' · ')||'contenido'), description:c.copy_text||''});
+    });
+    return map;
+  }
+
+  function renderCalendar(){
+    var grid = document.getElementById('calendar-grid');
+    if(!grid) return;
+    document.getElementById('cal-month-label').textContent = MONTH_NAMES[calViewMonth]+' '+calViewYear;
+
+    var dayMap = buildDayMap();
+    var first = new Date(calViewYear, calViewMonth, 1);
+    var startDow = (first.getDay()+6)%7;
+    var daysInMonth = new Date(calViewYear, calViewMonth+1, 0).getDate();
+    var todayStr = todayISO();
+
+    var cells = [];
+    for(var i=0;i<startDow;i++) cells.push(null);
+    for(var d=1; d<=daysInMonth; d++) cells.push(d);
+    while(cells.length % 7 !== 0) cells.push(null);
+
+    var html = '<div class="cal-dow">'+DOW_NAMES.map(function(n){ return '<div>'+n+'</div>'; }).join('')+'</div>';
+    html += '<div class="cal-cells">';
+    cells.forEach(function(d){
+      if(d===null){ html += '<div class="cal-cell empty"></div>'; return; }
+      var key = dateKey(calViewYear, calViewMonth, d);
+      var items = dayMap[key] || [];
+      var isToday = key===todayStr;
+      html += '<div class="cal-cell'+(isToday?' today':'')+'" data-date="'+key+'">'+
+        '<div class="cal-daynum">'+d+'</div>'+
+        '<div class="cal-dots">'+items.slice(0,4).map(function(it){ return '<span class="dot dot-'+it.type+'" title="'+esc(it.title)+'"></span>'; }).join('')+(items.length>4?'<span class="cal-more">+'+(items.length-4)+'</span>':'')+'</div>'+
+      '</div>';
+    });
+    html += '</div>';
+    grid.innerHTML = html;
+
+    grid.querySelectorAll('.cal-cell[data-date]').forEach(function(cell){
+      cell.addEventListener('click', function(){ openDayDialog(cell.getAttribute('data-date')); });
+    });
+  }
+
+  function openDayDialog(dateStr){
+    var dayMap = buildDayMap();
+    var items = dayMap[dateStr] || [];
+    var d = new Date(dateStr+'T00:00:00');
+    document.getElementById('dlg-day-title').textContent = d.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    var listEl = document.getElementById('dlg-day-list');
+    if(!items.length){
+      listEl.innerHTML = '<p class="hint">No hay nada registrado este día.</p>';
+    } else {
+      listEl.innerHTML = items.map(function(it){
+        return '<div class="annotation-item">'+
+          '<div class="annotation-text"><span class="dot dot-'+it.type+'"></span> '+esc(it.title)+'</div>'+
+          (it.description ? '<div class="annotation-meta">'+esc(it.description)+'</div>' : '')+
+          (it.type==='manual' ? '<button type="button" class="btn-text danger" id="evdel-'+it.id+'" style="margin-top:4px;">Eliminar evento</button>' : '')+
+        '</div>';
+      }).join('');
+      items.forEach(function(it){
+        if(it.type==='manual'){
+          var btn = document.getElementById('evdel-'+it.id);
+          if(btn) btn.addEventListener('click', function(){
+            if(!confirm('¿Eliminar este evento?')) return;
+            sb.from('calendar_events').delete().eq('id', it.id).then(function(res){
+              if(res.error){ alert('No se pudo eliminar: '+res.error.message); return; }
+              document.getElementById('dlg-day').close();
+              fetchCalendarEvents();
+            });
+          });
+        }
+      });
+    }
+    document.getElementById('dlg-day').dataset.date = dateStr;
+    document.getElementById('dlg-day').showModal();
+  }
+
+  document.getElementById('dlg-day-add').addEventListener('click', function(){
+    var dateStr = document.getElementById('dlg-day').dataset.date;
+    document.getElementById('dlg-day').close();
+    openEventDialog(null, dateStr);
+  });
+
+  document.getElementById('cal-prev').addEventListener('click', function(){
+    calViewMonth--; if(calViewMonth<0){ calViewMonth=11; calViewYear--; } renderCalendar();
+  });
+  document.getElementById('cal-next').addEventListener('click', function(){
+    calViewMonth++; if(calViewMonth>11){ calViewMonth=0; calViewYear++; } renderCalendar();
+  });
+  document.getElementById('cal-today').addEventListener('click', function(){
+    var now = new Date(); calViewYear=now.getFullYear(); calViewMonth=now.getMonth(); renderCalendar();
+  });
+
+  function openEventDialog(id, presetDate){
+    var dlg = document.getElementById('dlg-event');
+    var e = id ? calendarEvents.find(function(x){ return x.id===id; }) : null;
+    document.getElementById('dlg-event-title').textContent = e ? 'Editar evento' : 'Nuevo evento';
+    document.getElementById('ev-id').value = e ? e.id : '';
+    document.getElementById('ev-title').value = e ? (e.title||'') : '';
+    document.getElementById('ev-date').value = e ? (e.event_date||'') : (presetDate || todayISO());
+    document.getElementById('ev-description').value = e ? (e.description||'') : '';
+    dlg.showModal();
+  }
+
+  document.getElementById('btn-new-event').addEventListener('click', function(){ openEventDialog(null); });
+
+  document.getElementById('form-event').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var id = document.getElementById('ev-id').value;
+    var data = {
+      title: document.getElementById('ev-title').value.trim(),
+      event_date: document.getElementById('ev-date').value,
+      description: document.getElementById('ev-description').value.trim()
+    };
+    Object.assign(data, meta(!id));
+    if(!data.title || !data.event_date) return;
+    var submitBtn = document.getElementById('dlg-event').querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+    var task = id ? sb.from('calendar_events').update(data).eq('id', id) : sb.from('calendar_events').insert(data);
+    task.then(function(res){
+      submitBtn.disabled = false;
+      if(res.error){ alert('No se pudo guardar: '+res.error.message); return; }
+      document.getElementById('dlg-event').close();
+      fetchCalendarEvents();
+    });
+  });
+
+  /* -------- Banco de imágenes -------- */
+
+  function renderImageBank(){
+    var search = document.getElementById('im-search').value.trim().toLowerCase();
+    var list = imageBank.filter(function(im){
+      if(!search) return true;
+      return ((im.title||'')+' '+(im.category||'')).toLowerCase().indexOf(search)!==-1;
+    }).sort(function(a,b){ return (b.created_at||'').localeCompare(a.created_at||''); });
+
+    document.getElementById('image-empty').hidden = imageBank.length !== 0;
+    document.getElementById('image-grid').innerHTML = list.map(function(im){
+      var url = im.file_path ? sb.storage.from(BUCKET2).getPublicUrl(im.file_path).data.publicUrl : '';
+      return '<div class="imgcard">'+
+        '<div class="imgthumb" style="background-image:url(\''+url.replace(/'/g,"%27")+'\')" id="imgopen-'+im.id+'"></div>'+
+        '<div class="imgcard-body">'+
+          (im.category ? '<span class="cat">'+esc(im.category)+'</span>' : '')+
+          '<div class="imgcard-title">'+esc(im.title||'(sin título)')+'</div>'+
+          (canWrite ? '<div class="actions"><button class="btn-text" id="imgedit-'+im.id+'" type="button">Editar</button><button class="btn-text danger" id="imgdel-'+im.id+'" type="button">Eliminar</button></div>' : '')+
+        '</div>'+
+      '</div>';
+    }).join('');
+
+    list.forEach(function(im){
+      var openEl = document.getElementById('imgopen-'+im.id);
+      if(openEl) openEl.addEventListener('click', function(){
+        if(!im.file_path) return;
+        var url = sb.storage.from(BUCKET2).getPublicUrl(im.file_path).data.publicUrl;
+        window.open(url, '_blank', 'noopener');
+      });
+      var editBtn = document.getElementById('imgedit-'+im.id);
+      if(editBtn) editBtn.addEventListener('click', function(){ openImageDialog(im.id); });
+      var delBtn = document.getElementById('imgdel-'+im.id);
+      if(delBtn) delBtn.addEventListener('click', function(){ deleteImage(im.id); });
+    });
+  }
+
+  function openImageDialog(id){
+    var dlg = document.getElementById('dlg-image');
+    var im = id ? imageBank.find(function(x){ return x.id===id; }) : null;
+    document.getElementById('dlg-image-title').textContent = im ? 'Editar imagen' : 'Subir imagen';
+    document.getElementById('im-id').value = im ? im.id : '';
+    document.getElementById('im-title').value = im ? (im.title||'') : '';
+    document.getElementById('im-category').value = im ? (im.category||'') : '';
+    document.getElementById('im-notes').value = im ? (im.notes||'') : '';
+    document.getElementById('im-file').value = '';
+    document.getElementById('im-file').required = !im;
+    document.getElementById('im-file-current').textContent = im && im.file_name ? ('Archivo actual: '+im.file_name) : '';
+    var preview = document.getElementById('im-preview');
+    if(im && im.file_path){
+      preview.src = sb.storage.from(BUCKET2).getPublicUrl(im.file_path).data.publicUrl;
+      preview.style.display = 'block';
+    } else {
+      preview.style.display = 'none';
+      preview.src = '';
+    }
+    dlg.showModal();
+  }
+
+  document.getElementById('btn-new-image').addEventListener('click', function(){ openImageDialog(null); });
+  document.getElementById('im-search').addEventListener('input', renderImageBank);
+
+  document.getElementById('form-image').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var id = document.getElementById('im-id').value;
+    var existing = id ? imageBank.find(function(x){ return x.id===id; }) : null;
+    var fileInput = document.getElementById('im-file');
+    var file = fileInput.files && fileInput.files[0];
+    if(!id && !file){ alert('Selecciona una imagen.'); return; }
+
+    var data = {
+      title: document.getElementById('im-title').value.trim(),
+      category: document.getElementById('im-category').value.trim(),
+      notes: document.getElementById('im-notes').value.trim()
+    };
+    Object.assign(data, meta(!id));
+
+    var submitBtn = document.getElementById('dlg-image').querySelector('button[type=submit]');
+    submitBtn.disabled = true;
+
+    function saveRow(){
+      return id ? sb.from('image_bank').update(data).eq('id', id) : sb.from('image_bank').insert(data);
+    }
+
+    var oldPath = existing && existing.file_path;
+    var chain = Promise.resolve();
+    if(file){
+      chain = chain.then(function(){
+        var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        var path = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())) + '-' + safeName;
+        return sb.storage.from(BUCKET2).upload(path, file).then(function(res){
+          if(res.error) throw res.error;
+          data.file_path = path;
+          data.file_name = file.name;
+          data.file_type = file.type;
+        });
+      });
+    }
+
+    chain.then(function(){ return saveRow(); }).then(function(res){
+      if(res && res.error) throw res.error;
+      submitBtn.disabled = false;
+      if(file && oldPath) sb.storage.from(BUCKET2).remove([oldPath]);
+      document.getElementById('dlg-image').close();
+      fetchImageBank();
+    }).catch(function(e){
+      submitBtn.disabled = false;
+      alert('No se pudo guardar la imagen: '+(e && e.message ? e.message : e));
+    });
+  });
+
+  function deleteImage(id){
+    if(!confirm('¿Eliminar esta imagen del banco?')) return;
+    var im = imageBank.find(function(x){ return x.id===id; });
+    sb.from('image_bank').delete().eq('id', id).then(function(res){
+      if(res.error){ alert('No se pudo eliminar: '+res.error.message); return; }
+      if(im && im.file_path) sb.storage.from(BUCKET2).remove([im.file_path]);
+      fetchImageBank();
+    });
+  }
+
+  /* -------- Navegación del panel lateral -------- */
+
+  document.querySelectorAll('.navitem[data-section]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.navitem[data-section]').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.mainsec').forEach(function(s){ s.classList.remove('active'); });
+      var sec = document.getElementById('sec-'+btn.getAttribute('data-section'));
+      if(sec) sec.classList.add('active');
+      if(btn.getAttribute('data-section')==='calendario') renderCalendar();
+    });
+  });
 
   /* ---------------- boot ---------------- */
 
@@ -865,13 +1435,19 @@
     subscribed = true;
     sb.channel('providers-changes').on('postgres_changes', {event:'*', schema:'public', table:'providers'}, fetchProviders).subscribe();
     sb.channel('quotes-changes').on('postgres_changes', {event:'*', schema:'public', table:'quotes'}, fetchQuotes).subscribe();
+    sb.channel('creative-projects-changes').on('postgres_changes', {event:'*', schema:'public', table:'creative_projects'}, fetchCreativeProjects).subscribe();
+    sb.channel('content-plan-changes').on('postgres_changes', {event:'*', schema:'public', table:'content_plan'}, fetchContentPlan).subscribe();
+    sb.channel('calendar-events-changes').on('postgres_changes', {event:'*', schema:'public', table:'calendar_events'}, fetchCalendarEvents).subscribe();
+    sb.channel('image-bank-changes').on('postgres_changes', {event:'*', schema:'public', table:'image_bank'}, fetchImageBank).subscribe();
   }
 
   function handleSession(session){
     currentUser = session.user;
     applyWriteGating();
     showApp();
-    fetchProviders(); fetchQuotes(); subscribeRealtime();
+    fetchProviders(); fetchQuotes();
+    fetchCreativeProjects(); fetchContentPlan(); fetchCalendarEvents(); fetchImageBank();
+    subscribeRealtime();
   }
 
   sb.auth.getSession().then(function(res){
