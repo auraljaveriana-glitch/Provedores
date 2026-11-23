@@ -936,6 +936,12 @@
       var el = document.getElementById(id);
       if(el) el.hidden = !(canWrite && isAdmin);
     });
+    // Barra de "ver por responsable" (con conteos): solo Administrativo la ve,
+    // ya que diseño/video ya están limitados a sus propias tarjetas.
+    ['pf-bar-diseno','pf-bar-video'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.hidden = !(canWrite && isAdmin);
+    });
     ['btn-new-content','btn-new-event','btn-new-image'].forEach(function(id){
       var el = document.getElementById(id);
       if(el) el.disabled = !canWrite;
@@ -953,6 +959,10 @@
   var contentItems = [];
   var calendarEvents = [];
   var imageBank = [];
+  // Filtro por responsable (solo Administrativo): '' = todos,
+  // UNASSIGNED_KEY = sin asignar, o el nombre exacto de la persona.
+  var UNASSIGNED_KEY = '__sin_asignar__';
+  var assigneeFilter = { diseno:'', video:'' };
 
   var PROJECT_STATUSES = [
     {key:'todo', label:'Por hacer'},
@@ -1002,8 +1012,43 @@
     if(currentRole==='diseno' || currentRole==='video'){
       var mine = ((currentProfile && currentProfile.full_name) || '').trim().toLowerCase();
       list = list.filter(function(p){ return (p.assignee||'').trim().toLowerCase() === mine && mine !== ''; });
+    } else if(currentRole==='admin' && assigneeFilter[kind]){
+      // Administrativo puede filtrar el tablero por responsable (ver barra de conteos).
+      if(assigneeFilter[kind] === UNASSIGNED_KEY){
+        list = list.filter(function(p){ return !(p.assignee||'').trim(); });
+      } else {
+        list = list.filter(function(p){ return (p.assignee||'').trim() === assigneeFilter[kind]; });
+      }
     }
     return list;
+  }
+
+  function renderAssigneeFilterBar(kind){
+    var bar = document.getElementById('pf-counts-'+kind);
+    if(!bar) return;
+    var all = creativeProjects.filter(function(p){ return p.kind===kind; });
+    var counts = {};
+    var unassigned = 0;
+    all.forEach(function(p){
+      var name = (p.assignee||'').trim();
+      if(!name){ unassigned++; return; }
+      counts[name] = (counts[name]||0) + 1;
+    });
+    var names = Object.keys(counts).sort(function(a,b){ return a.localeCompare(b,'es'); });
+    var current = assigneeFilter[kind] || '';
+    var chips = [{ key:'', label:'Todos ('+all.length+')' }];
+    names.forEach(function(n){ chips.push({ key:n, label:n+' ('+counts[n]+')' }); });
+    if(unassigned>0) chips.push({ key:UNASSIGNED_KEY, label:'Sin asignar ('+unassigned+')' });
+    bar.innerHTML = chips.map(function(c){
+      return '<button type="button" class="pf-count-pill'+(current===c.key?' active':'')+'" data-key="'+esc(c.key)+'">'+esc(c.label)+'</button>';
+    }).join('');
+    bar.querySelectorAll('.pf-count-pill').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var key = btn.getAttribute('data-key');
+        assigneeFilter[kind] = (assigneeFilter[kind] === key) ? '' : key;
+        renderKanban(kind);
+      });
+    });
   }
 
   function renderProjectCard(p){
@@ -1032,6 +1077,7 @@
   function renderKanban(kind){
     var board = document.getElementById('board-'+kind);
     if(!board) return;
+    if(currentRole==='admin') renderAssigneeFilterBar(kind);
     var list = projectsByKind(kind);
     board.innerHTML = PROJECT_STATUSES.map(function(st){
       var cards = list.filter(function(p){ return p.status===st.key; })

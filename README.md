@@ -102,6 +102,8 @@ Cada tarjeta también tiene dos campos de archivo, dentro del mismo formulario d
 
 Solo **Administrativo** puede crear tarjetas nuevas o borrarlas (además de las que llegan solas por el formulario público de solicitudes). Quien tiene rol **Diseño** o **Video** solo ve, en su tablero correspondiente, las tarjetas donde "Responsable" sea exactamente su nombre — puede moverlas y editarlas, pero no ve el trabajo de sus compañeros ni puede crear tarjetas nuevas.
 
+**Administrativo** además ve, arriba de cada tablero, una barra "Ver por responsable" con un botón por cada persona que tiene tarjetas asignadas (y cuántas tiene cada una, incluida "Sin asignar"). Al hacer clic en un nombre, el tablero se filtra para mostrar solo las tarjetas de esa persona; clic de nuevo (o en "Todos") para quitar el filtro. Esto es solo una vista para Administrativo — no cambia lo que ve cada diseñador o editor en su propio tablero.
+
 ### Plan de contenidos
 Lista de publicaciones con red social, tipo de contenido, fecha y estado de publicación, responsable, el copy/texto y el enlace al diseño o video ya terminado. Se puede filtrar por red social, estado o buscar texto. Las fechas de publicación también aparecen en el Calendario.
 

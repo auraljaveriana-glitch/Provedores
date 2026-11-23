@@ -484,6 +484,17 @@
   .kcard .actions{display:flex;gap:10px;}
 
   /* ---------- Plan de contenidos ---------- */
+  /* ---------- Filtro de responsable (admin, proyectos) ---------- */
+  .assignee-filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .pf-counts{display:flex;gap:8px;flex-wrap:wrap;}
+  .pf-count-pill{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
+    padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-soft);
+    cursor:pointer;transition:all .15s ease;font:inherit;
+  }
+  .pf-count-pill:hover{border-color:var(--accent);color:var(--accent-strong);}
+  .pf-count-pill.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong);}
+
   .pill.ct-idea{background:var(--neutral-soft);color:var(--neutral);}
   .pill.ct-en_diseno{background:var(--warn-soft);color:var(--warn);}
   .pill.ct-programado{background:var(--accent-soft);color:var(--accent-strong);}
