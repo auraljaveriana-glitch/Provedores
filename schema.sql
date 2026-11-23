@@ -448,3 +448,18 @@ create policy "proyectos_archivos_select_auth" on storage.objects
 drop policy if exists "proyectos_archivos_delete_auth" on storage.objects;
 create policy "proyectos_archivos_delete_auth" on storage.objects
   for delete to authenticated using (bucket_id = 'proyectos-archivos');
+
+-- ---------- FASE 6: historial de estados, para medir cuánto tiempo toma
+-- cada pieza (total y por etapa: Por hacer / En proceso / Revisión). El
+-- sitio va agregando un registro {status, at} cada vez que una tarjeta
+-- cambia de columna; no hace falta tocarlo a mano. ----------
+alter table public.creative_projects add column if not exists status_history jsonb not null default '[]'::jsonb;
+
+-- A las tarjetas que ya existían (creadas antes de este cambio) les ponemos
+-- un primer registro con su estado actual, para que el cálculo de tiempos
+-- tenga de dónde partir.
+update public.creative_projects
+set status_history = jsonb_build_array(
+  jsonb_build_object('status', status, 'at', to_char(created_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
+)
+where status_history is null or status_history = '[]'::jsonb;

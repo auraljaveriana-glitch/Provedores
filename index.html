@@ -71,6 +71,7 @@
         <div class="assignee-filter-bar" id="pf-bar-diseno" hidden>
           <span class="hint" style="margin:0;">Ver por responsable:</span>
           <div class="pf-counts" id="pf-counts-diseno"></div>
+          <button type="button" class="btn-ghost" id="btn-project-times-diseno" style="margin-left:auto;">📊 Ver tiempos</button>
         </div>
         <div class="kanban-board" id="board-diseno"></div>
       </section>
@@ -86,6 +87,7 @@
         <div class="assignee-filter-bar" id="pf-bar-video" hidden>
           <span class="hint" style="margin:0;">Ver por responsable:</span>
           <div class="pf-counts" id="pf-counts-video"></div>
+          <button type="button" class="btn-ghost" id="btn-project-times-video" style="margin-left:auto;">📊 Ver tiempos</button>
         </div>
         <div class="kanban-board" id="board-video"></div>
       </section>
@@ -419,6 +421,22 @@
       <button type="submit" class="btn-primary">Guardar proyecto</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="dlg-project-times">
+  <div class="dlg-head"><h2 id="dlg-project-times-title">Tiempos</h2><button class="dlg-close" type="button" data-close="dlg-project-times">✕</button></div>
+  <div class="dlg-body">
+    <div class="field-divider">Tiempo promedio para terminar una pieza</div>
+    <div id="pt-overall"></div>
+    <div id="pt-by-person"></div>
+    <div class="field-divider">Tiempo promedio por etapa</div>
+    <div id="pt-stages"></div>
+    <div class="field-divider">Proyectos en curso con más tiempo en su etapa actual</div>
+    <div id="pt-stuck"></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn-ghost" data-close="dlg-project-times">Cerrar</button>
+    </div>
+  </div>
 </dialog>
 
 <dialog id="dlg-content">

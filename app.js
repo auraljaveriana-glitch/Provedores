@@ -1051,12 +1051,68 @@
     });
   }
 
+  // ---- Tiempos: cada tarjeta guarda en status_history un registro
+  // {status, at} por cada cambio de columna, para poder calcular cuánto
+  // tiempo lleva (o le tomó) cada pieza, total y por etapa.
+  function projectStatusHistory(p){
+    if(p.status_history && p.status_history.length) return p.status_history;
+    return [{ status: p.status, at: p.created_at }];
+  }
+  function formatDuration(ms){
+    if(!ms || ms < 0) ms = 0;
+    var totalMin = Math.round(ms / 60000);
+    var days = Math.floor(totalMin / 1440);
+    var hours = Math.floor((totalMin % 1440) / 60);
+    var mins = totalMin % 60;
+    if(days > 0) return days + (days===1?' día':' días') + (hours>0 ? ' '+hours+'h' : '');
+    if(hours > 0) return hours + 'h' + (mins>0 ? ' '+mins+'m' : '');
+    return mins + ' min';
+  }
+  function computeStageDurations(p){
+    var history = projectStatusHistory(p);
+    var durations = {};
+    for(var i=0;i<history.length;i++){
+      var startTs = new Date(history[i].at).getTime();
+      var endTs = (i+1 < history.length) ? new Date(history[i+1].at).getTime() : Date.now();
+      var st = history[i].status;
+      durations[st] = (durations[st]||0) + Math.max(0, endTs - startTs);
+    }
+    return durations;
+  }
+  function computeTotalMs(p){
+    var start = new Date(p.created_at).getTime();
+    var end = Date.now();
+    if(p.status === 'terminado'){
+      var history = projectStatusHistory(p);
+      for(var i=history.length-1;i>=0;i--){
+        if(history[i].status === 'terminado'){ end = new Date(history[i].at).getTime(); break; }
+      }
+    }
+    return Math.max(0, end - start);
+  }
+  function currentStageElapsedMs(p){
+    var history = projectStatusHistory(p);
+    var last = history[history.length-1];
+    return Math.max(0, Date.now() - new Date(last.at).getTime());
+  }
+  // Detecta si la tarjeta en algún momento se devolvió a una etapa anterior
+  // (ej. de Revisión otra vez a En proceso) — no solo que avanzó siempre.
+  var STAGE_ORDER = { todo:0, en_proceso:1, revision:2, terminado:3 };
+  function hasBeenReturned(p){
+    var history = projectStatusHistory(p);
+    for(var i=1;i<history.length;i++){
+      if((STAGE_ORDER[history[i].status]||0) < (STAGE_ORDER[history[i-1].status]||0)) return true;
+    }
+    return false;
+  }
+
   function renderProjectCard(p){
     var overdue = p.due_date && p.due_date < todayISO() && p.status!=='terminado';
     var prioLabel = {alta:'Alta',media:'Media',baja:'Baja'}[p.priority];
     var isAdmin = currentRole === 'admin';
     return '<div class="kcard" id="pcardel-'+p.id+'" draggable="'+(canWrite?'true':'false')+'">'+
       (p.source==='solicitud' ? '<span class="krequest-badge">📩 Solicitud</span>' : '')+
+      (hasBeenReturned(p) ? '<span class="kreturned-badge">↩ Reabierto</span>' : '')+
       (p.priority ? '<span class="kprio '+esc(p.priority)+'">'+esc(prioLabel||p.priority)+'</span>' : '')+
       '<div class="kname">'+esc(p.name)+'</div>'+
       (p.description ? '<div class="kdesc">'+esc(p.description)+'</div>' : '')+
@@ -1065,6 +1121,9 @@
         (p.assignee ? '<span>👤 '+esc(p.assignee)+'</span>' : (p.source==='solicitud' ? '<span style="color:var(--warn);font-weight:700;">Sin asignar</span>' : ''))+
         (p.due_date ? '<span class="'+(overdue?'kdue-overdue':'')+'">📅 '+fmtDate(p.due_date)+'</span>' : '')+
       '</div>'+
+      (p.status==='terminado'
+        ? '<div class="kcard-time">✅ Terminado en '+formatDuration(computeTotalMs(p))+'</div>'
+        : '<div class="kcard-time">⏱ '+formatDuration(computeTotalMs(p))+' desde que se creó · '+formatDuration(currentStageElapsedMs(p))+' en esta etapa</div>')+
       (p.link_url ? '<a class="kcard-link" href="'+esc(p.link_url)+'" target="_blank" rel="noopener">🔗 Ver enlace</a>' : '')+
       (p.reference_file_path || p.final_file_path ? '<div style="margin-top:6px;display:flex;gap:12px;flex-wrap:wrap;">'+
         (p.reference_file_path ? '<button type="button" class="file-link" id="pjref-'+p.id+'" style="background:none;border:none;padding:0;cursor:pointer;">📎 Ver muestra</button>' : '')+
@@ -1119,10 +1178,14 @@
         var p = creativeProjects.find(function(x){ return x.id===pid; });
         if(!p || p.status===newStatus) return;
         var oldStatus = p.status;
+        var oldHistory = p.status_history;
+        var newHistory = projectStatusHistory(p).slice();
+        newHistory.push({ status: newStatus, at: new Date().toISOString() });
         p.status = newStatus;
+        p.status_history = newHistory;
         renderKanban(kind);
-        sb.from('creative_projects').update(Object.assign({status:newStatus}, meta(false))).eq('id', pid).then(function(res){
-          if(res.error){ alert('No se pudo mover el proyecto: '+res.error.message); p.status = oldStatus; renderKanban(kind); }
+        sb.from('creative_projects').update(Object.assign({status:newStatus, status_history:newHistory}, meta(false))).eq('id', pid).then(function(res){
+          if(res.error){ alert('No se pudo mover el proyecto: '+res.error.message); p.status = oldStatus; p.status_history = oldHistory; renderKanban(kind); }
         });
       });
     });
@@ -1191,6 +1254,88 @@
   if(shareBtn1) shareBtn1.addEventListener('click', function(){ copyRequestLink(shareBtn1); });
   if(shareBtn2) shareBtn2.addEventListener('click', function(){ copyRequestLink(shareBtn2); });
 
+  // ---- Panel de tiempos (solo Administrativo): promedio para terminar una
+  // pieza (general y por persona), promedio por etapa, y qué tarjetas en
+  // curso llevan más tiempo sin moverse de su columna actual.
+  function openProjectTimesDialog(kind){
+    var dlg = document.getElementById('dlg-project-times');
+    document.getElementById('dlg-project-times-title').textContent = 'Tiempos — Proyectos de '+(kind==='video'?'video':'diseño');
+    var all = creativeProjects.filter(function(p){ return p.kind===kind; });
+    var done = all.filter(function(p){ return p.status==='terminado'; });
+
+    var overallEl = document.getElementById('pt-overall');
+    if(!done.length){
+      overallEl.innerHTML = '<p class="hint">Todavía no hay piezas terminadas de este tipo para calcular un promedio.</p>';
+    } else {
+      var totalSum = done.reduce(function(sum,p){ return sum + computeTotalMs(p); }, 0);
+      overallEl.innerHTML = '<div class="pt-row"><span class="pt-label">Promedio general ('+done.length+' terminadas)</span><span class="pt-value">'+formatDuration(totalSum/done.length)+'</span></div>';
+    }
+    var returnedCount = all.filter(hasBeenReturned).length;
+    if(returnedCount > 0){
+      overallEl.innerHTML += '<div class="pt-row"><span class="pt-label">↩ Se devolvieron a una etapa anterior</span><span class="pt-value">'+returnedCount+' de '+all.length+' piezas</span></div>';
+    }
+
+    var byPerson = {};
+    done.forEach(function(p){
+      var name = (p.assignee||'').trim() || 'Sin asignar';
+      if(!byPerson[name]) byPerson[name] = { sum:0, count:0 };
+      byPerson[name].sum += computeTotalMs(p);
+      byPerson[name].count++;
+    });
+    var names = Object.keys(byPerson).sort(function(a,b){ return a.localeCompare(b,'es'); });
+    var maxPersonAvg = 0;
+    names.forEach(function(n){ var a = byPerson[n].sum/byPerson[n].count; if(a>maxPersonAvg) maxPersonAvg=a; });
+    document.getElementById('pt-by-person').innerHTML = names.map(function(n){
+      var avg = byPerson[n].sum / byPerson[n].count;
+      var pct = maxPersonAvg ? Math.max(6, Math.round(avg/maxPersonAvg*100)) : 0;
+      return '<div class="pt-row"><span class="pt-label">'+esc(n)+' ('+byPerson[n].count+')</span>'+
+        '<span class="pt-bar-wrap"><span class="pt-bar" style="width:'+pct+'%;"></span></span>'+
+        '<span class="pt-value">'+formatDuration(avg)+'</span></div>';
+    }).join('');
+
+    var stageSums = {}; var stageCounts = {};
+    all.forEach(function(p){
+      var dur = computeStageDurations(p);
+      Object.keys(dur).forEach(function(st){
+        stageSums[st] = (stageSums[st]||0) + dur[st];
+        stageCounts[st] = (stageCounts[st]||0) + 1;
+      });
+    });
+    var maxStageAvg = 0;
+    PROJECT_STATUSES.forEach(function(st){
+      if(stageCounts[st.key]){ var a = stageSums[st.key]/stageCounts[st.key]; if(a>maxStageAvg) maxStageAvg=a; }
+    });
+    document.getElementById('pt-stages').innerHTML = PROJECT_STATUSES.map(function(st){
+      if(!stageCounts[st.key]) return '';
+      var avg = stageSums[st.key] / stageCounts[st.key];
+      var pct = maxStageAvg ? Math.max(6, Math.round(avg/maxStageAvg*100)) : 0;
+      return '<div class="pt-row"><span class="pt-label">'+esc(st.label)+'</span>'+
+        '<span class="pt-bar-wrap"><span class="pt-bar" style="width:'+pct+'%;"></span></span>'+
+        '<span class="pt-value">'+formatDuration(avg)+' en promedio</span></div>';
+    }).join('') || '<p class="hint">Todavía no hay suficientes datos.</p>';
+
+    var stLabel = {}; PROJECT_STATUSES.forEach(function(s){ stLabel[s.key]=s.label; });
+    var inProgress = all.filter(function(p){ return p.status!=='terminado'; })
+      .map(function(p){ return { p:p, ms: currentStageElapsedMs(p) }; })
+      .sort(function(a,b){ return b.ms - a.ms; })
+      .slice(0, 6);
+    var stuckEl = document.getElementById('pt-stuck');
+    if(!inProgress.length){
+      stuckEl.innerHTML = '<p class="hint">No hay proyectos en curso de este tipo.</p>';
+    } else {
+      stuckEl.innerHTML = inProgress.map(function(item){
+        return '<div class="pt-row"><span class="pt-label">'+esc(item.p.name)+(item.p.assignee?' · '+esc(item.p.assignee):'')+'</span>'+
+          '<span class="pt-value">'+formatDuration(item.ms)+' en "'+esc(stLabel[item.p.status]||item.p.status)+'"</span></div>';
+      }).join('');
+    }
+
+    dlg.showModal();
+  }
+  var timesBtn1 = document.getElementById('btn-project-times-diseno');
+  var timesBtn2 = document.getElementById('btn-project-times-video');
+  if(timesBtn1) timesBtn1.addEventListener('click', function(){ openProjectTimesDialog('diseno'); });
+  if(timesBtn2) timesBtn2.addEventListener('click', function(){ openProjectTimesDialog('video'); });
+
   document.getElementById('form-project').addEventListener('submit', function(ev){
     ev.preventDefault();
     var id = document.getElementById('pj-id').value;
@@ -1209,6 +1354,14 @@
     };
     Object.assign(data, meta(!id));
     if(!data.name) return;
+    // Registrar el cambio de etapa (para poder calcular tiempos después).
+    if(!id){
+      data.status_history = [{ status: data.status, at: new Date().toISOString() }];
+    } else if(existing && existing.status !== data.status){
+      var hist = projectStatusHistory(existing).slice();
+      hist.push({ status: data.status, at: new Date().toISOString() });
+      data.status_history = hist;
+    }
     var submitBtn = document.getElementById('dlg-project').querySelector('button[type=submit]');
     submitBtn.disabled = true;
 

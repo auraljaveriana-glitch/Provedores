@@ -495,6 +495,14 @@
   .pf-count-pill:hover{border-color:var(--accent);color:var(--accent-strong);}
   .pf-count-pill.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong);}
 
+  /* ---------- Tiempos de cada tarjeta y panel de tiempos (admin) ---------- */
+  .kcard-time{font-size:11px;color:var(--text-soft);margin-top:4px;}
+  .pt-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px;}
+  .pt-label{flex:0 0 42%;color:var(--text);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pt-bar-wrap{flex:1;height:8px;background:var(--surface-2);border-radius:999px;overflow:hidden;}
+  .pt-bar{display:block;height:100%;background:var(--accent);border-radius:999px;}
+  .pt-value{flex:0 0 auto;color:var(--text-soft);font-size:12px;white-space:nowrap;}
+
   .pill.ct-idea{background:var(--neutral-soft);color:var(--neutral);}
   .pill.ct-en_diseno{background:var(--warn-soft);color:var(--warn);}
   .pill.ct-programado{background:var(--accent-soft);color:var(--accent-strong);}
@@ -544,6 +552,10 @@
   .krequest-badge{
     align-self:flex-start;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;
     background:var(--navy);color:#fff;
+  }
+  .kreturned-badge{
+    align-self:flex-start;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;
+    background:var(--warn-soft);color:var(--warn);
   }
   .kcard .kreq-meta{font-size:11px;color:var(--text-soft);}
   .kcard .kreq-meta b{color:var(--text);}

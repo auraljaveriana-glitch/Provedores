@@ -104,6 +104,19 @@ Solo **Administrativo** puede crear tarjetas nuevas o borrarlas (además de las 
 
 **Administrativo** además ve, arriba de cada tablero, una barra "Ver por responsable" con un botón por cada persona que tiene tarjetas asignadas (y cuántas tiene cada una, incluida "Sin asignar"). Al hacer clic en un nombre, el tablero se filtra para mostrar solo las tarjetas de esa persona; clic de nuevo (o en "Todos") para quitar el filtro. Esto es solo una vista para Administrativo — no cambia lo que ve cada diseñador o editor en su propio tablero.
 
+### Tiempos de cada proyecto
+Cada tarjeta ahora muestra cuánto tiempo lleva (si sigue en curso) o cuánto le tomó completarse (si ya está "Terminado"), calculado automáticamente desde que se creó. Mientras está en curso, también muestra cuánto tiempo lleva en su etapa actual (Por hacer, En proceso o Revisión) — útil para notar cuando algo se está quedando estancado.
+
+Si una tarjeta se devuelve a una etapa anterior (por ejemplo, de Revisión otra vez a En proceso porque hubo que corregir algo), eso también queda registrado: la tarjeta muestra una etiqueta "↩ Reabierto", el tiempo "en esta etapa" se reinicia desde que volvió a entrar ahí, y el tiempo total que termina mostrando cuando por fin se marca como Terminado incluye esa vuelta atrás.
+
+**Administrativo** tiene además un botón "📊 Ver tiempos" junto a la barra de "Ver por responsable", con un resumen de ese tablero (diseño o video por separado):
+- El tiempo promedio que toma terminar una pieza, en general y por cada persona (con una barra para comparar a simple vista).
+- Cuántas piezas se devolvieron a una etapa anterior en algún momento.
+- El tiempo promedio que pasan las piezas en cada etapa del tablero (sumando todas las veces que una pieza pasó por ahí, si se devolvió más de una vez).
+- Las piezas en curso que llevan más tiempo sin moverse de su columna actual — para detectar rápido qué se está demorando.
+
+Esto se calcula a partir de un registro interno (`status_history`) que el sitio va guardando solo, cada vez que una tarjeta cambia de columna — no hay que llenar nada a mano. A las tarjetas que ya existían antes de este cambio se les puso un primer registro al correr el `schema.sql` más reciente, así que sus tiempos empiezan a contarse bien desde ahí en adelante.
+
 ### Plan de contenidos
 Lista de publicaciones con red social, tipo de contenido, fecha y estado de publicación, responsable, el copy/texto y el enlace al diseño o video ya terminado. Se puede filtrar por red social, estado o buscar texto. Las fechas de publicación también aparecen en el Calendario.
 
@@ -143,6 +156,6 @@ Cada registro queda marcado con el correo de quién lo creó y quién lo editó 
 Esta versión agrega todo el panel de Marketing (proyectos, contenidos, calendario, banco de imágenes, formulario público de solicitudes) sin tocar lo que ya tenías en Proveedores & cotizaciones. Para que funcione con los datos que ya tienes en Supabase:
 
 1. Entra a Supabase → **SQL Editor** → **New query**.
-2. Pega **todo** el contenido de [`schema.sql`](schema.sql) (el archivo completo, no solo un bloque) y dale **Run**. Está hecho para poder correrse entero las veces que sea necesario: no borra ni cambia nada de lo que ya tenías, solo crea las tablas, columnas, los buckets (incluido el más reciente, `proyectos-archivos`, para los archivos de referencia y de arte final) y las políticas nuevas si no existen.
+2. Pega **todo** el contenido de [`schema.sql`](schema.sql) (el archivo completo, no solo un bloque) y dale **Run**. Está hecho para poder correrse entero las veces que sea necesario: no borra ni cambia nada de lo que ya tenías, solo crea las tablas, columnas (incluida `status_history`, para medir tiempos), los buckets (incluido `proyectos-archivos`, para los archivos de referencia y de arte final) y las políticas nuevas si no existen.
 3. Reemplaza en tu repositorio de GitHub (o arrástralos de nuevo si lo subiste así) los archivos `index.html`, `app.js`, `styles.css`, `README.md` y `schema.sql` por los nuevos, y agrega los dos archivos nuevos `solicitar.html` y `solicitar.js`. `supabase-config.js` y `aural-logo.png` no cambiaron.
 4. **No te saltes este paso:** esta versión agrega roles y permisos (ver "Asignar el rol de cada cuenta" arriba). Hasta que le pongas un rol a cada cuenta que ya existía — incluida la tuya — nadie va a poder usar el panel, solo verán el aviso de que falta asignarles un rol.
